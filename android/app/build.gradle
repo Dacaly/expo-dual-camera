@@ -1,0 +1,3 @@
+android.package=expo.dualcamera
+android.name=DualCameraModule
+android.mainClass=expo.dualcamera.DualCameraModule

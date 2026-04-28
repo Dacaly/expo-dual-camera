@@ -1,0 +1,29 @@
+{
+  "name": "expo-dual-camera",
+  "version": "1.0.0",
+  "description": "Native dual camera support using AVCaptureMultiCamSession for iOS and CameraX for Android",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "expo-module build",
+    "prepublishOnly": "expo-module build"
+  },
+  "keywords": [
+    "expo",
+    "camera",
+    "dual-camera",
+    "multicam"
+  ],
+  "author": "Dacaly",
+  "license": "MIT",
+  "peerDependencies": {
+    "expo": "*"
+  },
+  "dependencies": {
+    "expo-modules-core": "^2.0.0"
+  },
+  "devDependencies": {
+    "expo-module-scripts": "*",
+    "typescript": "^5.0.0"
+  }
+}
