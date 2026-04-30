@@ -1,4 +1,4 @@
-import { requireNativeView } from 'expo-modules-core';
+import { requireNativeViewManager, requireOptionalNativeModule } from 'expo-modules-core';
 
 export interface Frame {
   x: number;
@@ -14,10 +14,19 @@ export interface DualCameraProps {
   backGravity?: 'resize' | 'resizeAspect' | 'resizeAspectFill';
 }
 
-const NativeDualCamera = requireNativeView<DualCameraProps>('DualCamera');
+const NativeDualCamera = requireNativeViewManager<DualCameraProps>('DualCamera');
 
 export default NativeDualCamera;
 
+// Use native isSupported from the module
 export async function isSupported(): Promise<boolean> {
-  return NativeDualCamera.isSupported?.() ?? false;
+  try {
+    const module = requireOptionalNativeModule<{ isSupported: () => Promise<boolean> }>('DualCamera');
+    if (module && typeof module.isSupported === 'function') {
+      return await module.isSupported();
+    }
+  } catch {
+    // Ignore errors
+  }
+  return false;
 }
