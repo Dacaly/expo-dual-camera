@@ -3,7 +3,7 @@ name: Publish to npm
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 jobs:
@@ -21,13 +21,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "20"
 
       - name: Install dependencies
         run: npm install
 
+      - name: Configure npm for OIDC
+        run: |
+          npm config set //registry.npmjs.org/:_auth ""
+          npm config set //registry.npmjs.org/:always-auth false
+
       - name: Publish to npm
         run: npm publish --access public --ignore-scripts --provenance
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
