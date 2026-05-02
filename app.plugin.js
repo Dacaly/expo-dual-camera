@@ -1,7 +1,1 @@
-const { withPlugins } = require('@expo/config-plugins');
-
-module.exports = function (config) {
-  return withPlugins(config, [
-    require('./plugins/withDualCamera'),
-  ]);
-};
+module.exports = require("./plugin/build/withDualCamera");
