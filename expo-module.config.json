@@ -1,9 +1,9 @@
 {
   "platforms": ["apple", "android", "web"],
   "apple": {
-    "modules": ["ExpoDualCameraModule"]
+    "modules": ["ExpoDualCameraModule", "ExpoDualCameraViewManager"]
   },
   "android": {
-    "modules": ["expo.modules.dualcamera.ExpoDualCameraModule"]
+    "modules": ["expo.modules.dualcamera.ExpoDualCameraModule", "expo.modules.dualcamera.DualCameraViewManager"]
   }
 }

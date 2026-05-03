@@ -1,50 +1,61 @@
 package expo.modules.dualcamera
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
-import java.net.URL
+import expo.modules.kotlin.Promise
 
 class ExpoDualCameraModule : Module() {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
   override fun definition() = ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('ExpoDualCamera')` in JavaScript.
     Name("ExpoDualCamera")
 
-    // Defines constant property on the module.
-    Constant("PI") {
-      Math.PI
+    Function("isSupported") {
+      return@Function true
     }
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
-
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      "Hello world! 👋"
-    }
-
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { value: String ->
-      // Send an event to JavaScript.
-      sendEvent("onChange", mapOf(
-        "value" to value
-      ))
-    }
-
-    // Enables the module to be used as a native view. Definition components that are accepted as part of
-    // the view definition: Prop, Events.
-    View(ExpoDualCameraView::class) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { view: ExpoDualCameraView, url: URL ->
-        view.webView.loadUrl(url.toString())
+    AsyncFunction("checkCameraPermission") { promise: Promise ->
+      val activity = appContext.activity ?: run {
+        promise.reject("E_ACTIVITY", "Activity not found")
+        return@AsyncFunction
       }
-      // Defines an event that the view can send to JavaScript.
-      Events("onLoad")
+
+      val hasPermission = ContextCompat.checkSelfPermission(
+        activity,
+        Manifest.permission.CAMERA
+      ) == PackageManager.PERMISSION_GRANTED
+
+      promise.resolve(hasPermission)
+    }
+
+    AsyncFunction("requestCameraPermission") { promise: Promise ->
+      val activity = appContext.activity ?: run {
+        promise.reject("E_ACTIVITY", "Activity not found")
+        return@AsyncFunction
+      }
+
+      val hasPermission = ContextCompat.checkSelfPermission(
+        activity,
+        Manifest.permission.CAMERA
+      ) == PackageManager.PERMISSION_GRANTED
+
+      if (hasPermission) {
+        promise.resolve(true)
+        return@AsyncFunction
+      }
+
+      val PERMISSION_REQUEST_CODE = 1001
+      activity.requestPermissions(
+        arrayOf(Manifest.permission.CAMERA),
+        PERMISSION_REQUEST_CODE
+      ) { result ->
+        promise.resolve(result.isGranted)
+      }
+    }
+
+    registerViewManager(DualCameraViewManager::class) {
+      Name("ExpoDualCamera")
     }
   }
 }

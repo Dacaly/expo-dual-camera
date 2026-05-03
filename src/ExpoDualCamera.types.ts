@@ -1,19 +1,16 @@
-import type { StyleProp, ViewStyle } from 'react-native';
+export type VideoGravity = 'resize' | 'resizeAspect' | 'resizeAspectFill';
 
-export type OnLoadEventPayload = {
-  url: string;
+export type Frame = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
-export type ExpoDualCameraModuleEvents = {
-  onChange: (params: ChangeEventPayload) => void;
-};
-
-export type ChangeEventPayload = {
-  value: string;
-};
-
-export type ExpoDualCameraViewProps = {
-  url: string;
-  onLoad: (event: { nativeEvent: OnLoadEventPayload }) => void;
-  style?: StyleProp<ViewStyle>;
+export type DualCameraProps = {
+  frontFrame: Frame;
+  backFrame: Frame;
+  frontGravity?: VideoGravity;
+  backGravity?: VideoGravity;
+  style?: object;
 };

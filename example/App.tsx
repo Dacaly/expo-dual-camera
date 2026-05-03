@@ -1,73 +1,53 @@
-import { useEvent } from 'expo';
-import ExpoDualCamera, { ExpoDualCameraView } from 'expo-dual-camera';
-import { Button, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { DualCamera, isSupported } from 'expo-dual-camera';
+import { useWindowDimensions, StyleSheet, View, Text } from 'react-native';
+import { useState, useEffect } from 'react';
 
 export default function App() {
-  const onChangePayload = useEvent(ExpoDualCamera, 'onChange');
+  const { width, height } = useWindowDimensions();
+  const [supported, setSupported] = useState<boolean | null>(null);
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.container}>
-        <Text style={styles.header}>Module API Example</Text>
-        <Group name="Constants">
-          <Text>{ExpoDualCamera.PI}</Text>
-        </Group>
-        <Group name="Functions">
-          <Text>{ExpoDualCamera.hello()}</Text>
-        </Group>
-        <Group name="Async functions">
-          <Button
-            title="Set value"
-            onPress={async () => {
-              await ExpoDualCamera.setValueAsync('Hello from JS!');
-            }}
-          />
-        </Group>
-        <Group name="Events">
-          <Text>{onChangePayload?.value}</Text>
-        </Group>
-        <Group name="Views">
-          <ExpoDualCameraView
-            url="https://www.example.com"
-            onLoad={({ nativeEvent: { url } }) => console.log(`Loaded: ${url}`)}
-            style={styles.view}
-          />
-        </Group>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
+  useEffect(() => {
+    isSupported().then(setSupported);
+  }, []);
 
-function Group(props: { name: string; children: React.ReactNode }) {
+  if (supported === false) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>Dual camera not supported on this device</Text>
+      </View>
+    );
+  }
+
+  if (supported === null) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>Checking dual camera support...</Text>
+      </View>
+    );
+  }
+
+  // Horizontal split
   return (
-    <View style={styles.group}>
-      <Text style={styles.groupHeader}>{props.name}</Text>
-      {props.children}
+    <View style={styles.container}>
+      <DualCamera
+        frontFrame={{ x: 0, y: 0, width: width / 2, height }}
+        backFrame={{ x: width / 2, y: 0, width: width / 2, height }}
+        style={styles.camera}
+      />
     </View>
   );
 }
 
-const styles = {
-  header: {
-    fontSize: 30,
-    margin: 20,
-  },
-  groupHeader: {
-    fontSize: 20,
-    marginBottom: 20,
-  },
-  group: {
-    margin: 20,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-  },
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#eee',
+    backgroundColor: '#000',
   },
-  view: {
+  camera: {
     flex: 1,
-    height: 200,
   },
-};
+  text: {
+    color: '#fff',
+    fontSize: 16,
+  },
+});

@@ -1,5 +1,9 @@
-// Reexport the native module. On web, it will be resolved to ExpoDualCameraModule.web.ts
-// and on native platforms to ExpoDualCameraModule.ts
-export { default } from './ExpoDualCameraModule';
-export { default as ExpoDualCameraView } from './ExpoDualCameraView';
-export * from  './ExpoDualCamera.types';
+import ExpoDualCameraModule from './ExpoDualCameraModule';
+import type { DualCameraProps } from './ExpoDualCamera.types';
+export { DualCamera } from './DualCameraView';
+
+export async function isSupported(): Promise<boolean> {
+  return await ExpoDualCameraModule.isSupported();
+}
+
+export type { DualCameraProps };
