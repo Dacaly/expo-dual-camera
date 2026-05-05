@@ -5,5 +5,8 @@
   },
   "android": {
     "modules": ["expo.modules.dualcamera.ExpoDualCameraModule", "expo.modules.dualcamera.DualCameraViewManager"]
-  }
+  },
+  "plugins": [
+    "./plugins/withDualCamera"
+  ]
 }
