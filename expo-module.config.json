@@ -1,7 +1,8 @@
 {
   "platforms": ["apple", "android", "web"],
   "apple": {
-    "modules": ["ExpoDualCameraModule", "ExpoDualCameraViewManager"]
+    "modules": ["ExpoDualCameraModule", "ExpoDualCameraViewManager"],
+    "podspec": "./ios/ExpoDualCamera.podspec"
   },
   "android": {
     "modules": ["expo.modules.dualcamera.ExpoDualCameraModule", "expo.modules.dualcamera.DualCameraViewManager"]
