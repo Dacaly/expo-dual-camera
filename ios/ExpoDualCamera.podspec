@@ -15,7 +15,7 @@ Pod::Spec.new do |s|
     :tvos => '16.0'
   }
   s.swift_version  = '5.9'
-  s.source         = { git: 'https://github.com/Dacaly/expo-dual-camera' }
+  s.source = { :path => "." }
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
