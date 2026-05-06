@@ -1,6 +1,7 @@
 import UIKit
 import AVFoundation
 
+@objc(ExpoDualCameraView)
 public class DualCameraView: UIView {
 
     // MARK: - Properties

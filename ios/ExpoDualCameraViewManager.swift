@@ -1,6 +1,5 @@
 import ExpoModulesCore
 
-@objc(ExpoDualCameraViewManager)
 public class ExpoDualCameraViewManager: Module {
 
   public func definition() -> ModuleDefinition {
