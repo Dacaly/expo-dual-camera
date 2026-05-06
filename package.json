@@ -4,6 +4,13 @@
   "description": "Native dual camera support using AVCaptureMultiCamSession for iOS and CameraX for Android",
   "main": "build/index.js",
   "types": "build/index.d.ts",
+  "files": [
+    "build",
+    "android",
+    "ios",
+    "expo-module.config.json",
+    "*.podspec"
+  ],
   "scripts": {
     "build": "expo-module build",
     "clean": "expo-module clean",
@@ -11,9 +18,7 @@
     "test": "expo-module test",
     "prepare": "expo-module prepare",
     "prepublishOnly": "expo-module prepublishOnly",
-    "expo-module": "expo-module",
-    "open:ios": "xed example/ios",
-    "open:android": "open -a \"Android Studio\" example/android"
+    "expo-module": "expo-module"
   },
   "keywords": [
     "react-native",
