@@ -190,13 +190,27 @@ public class DualCameraView: UIView {
 
             // Capture ports for preview layer creation on main thread
             DispatchQueue.main.async {
-                let frontPreview = AVCaptureVideoPreviewLayer(session: session, inputPort: frontPort)
+                // Create preview layers without auto-connections
+                let frontPreview = AVCaptureVideoPreviewLayer()
+                frontPreview.setSessionWithNoConnection(session)
                 frontPreview.videoGravity = self.frontGravity
                 frontPreview.frame = self.frontFrame
 
-                let backPreview = AVCaptureVideoPreviewLayer(session: session, inputPort: backPort)
+                let backPreview = AVCaptureVideoPreviewLayer()
+                backPreview.setSessionWithNoConnection(session)
                 backPreview.videoGravity = self.backGravity
                 backPreview.frame = self.backFrame
+
+                // Explicitly connect each port to its preview layer
+                let frontPreviewConnection = AVCaptureConnection(inputPort: frontPort, videoPreviewLayer: frontPreview)
+                if session.canAddConnection(frontPreviewConnection) {
+                    session.addConnection(frontPreviewConnection)
+                }
+
+                let backPreviewConnection = AVCaptureConnection(inputPort: backPort, videoPreviewLayer: backPreview)
+                if session.canAddConnection(backPreviewConnection) {
+                    session.addConnection(backPreviewConnection)
+                }
 
                 self.layer.insertSublayer(backPreview, at: 0)
                 self.layer.insertSublayer(frontPreview, at: 0)
