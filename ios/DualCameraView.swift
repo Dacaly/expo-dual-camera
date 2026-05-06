@@ -190,11 +190,11 @@ public class DualCameraView: UIView {
 
             // Capture ports for preview layer creation on main thread
             DispatchQueue.main.async {
-                let frontPreview = AVCaptureVideoPreviewLayer(session: session, qsPort: frontPort)
+                let frontPreview = AVCaptureVideoPreviewLayer(session: session, inputPort: frontPort)
                 frontPreview.videoGravity = self.frontGravity
                 frontPreview.frame = self.frontFrame
 
-                let backPreview = AVCaptureVideoPreviewLayer(session: session, qsPort: backPort)
+                let backPreview = AVCaptureVideoPreviewLayer(session: session, inputPort: backPort)
                 backPreview.videoGravity = self.backGravity
                 backPreview.frame = self.backFrame
 
