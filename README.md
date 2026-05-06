@@ -6,7 +6,7 @@ Native dual camera support for Expo apps using AVCaptureMultiCamSession (iOS) an
 
 - True simultaneous front and back camera capture
 - Raw frame control - style the cameras however you want in your app
-- iOS 13+ with AVCaptureMultiCamSession support
+- iOS 16+ with AVCaptureMultiCamSession support
 - Android API 24+ with CameraX
 
 ## Installation
@@ -50,12 +50,12 @@ const pipSize = Math.min(width, height) * 0.25;
 
 ## Props
 
-| Prop | Type | Description |
-|------|------|-------------|
-| `frontFrame` | `{ x, y, width, height }` | Position and size of front camera |
-| `backFrame` | `{ x, y, width, height }` | Position and size of back camera |
+| Prop           | Type                                               | Description                                                  |
+| -------------- | -------------------------------------------------- | ------------------------------------------------------------ |
+| `frontFrame`   | `{ x, y, width, height }`                          | Position and size of front camera                            |
+| `backFrame`    | `{ x, y, width, height }`                          | Position and size of back camera                             |
 | `frontGravity` | `'resize' \| 'resizeAspect' \| 'resizeAspectFill'` | Video gravity for front camera (default: `resizeAspectFill`) |
-| `backGravity` | `'resize' \| 'resizeAspect' \| 'resizeAspectFill'` | Video gravity for back camera (default: `resizeAspectFill`) |
+| `backGravity`  | `'resize' \| 'resizeAspect' \| 'resizeAspectFill'` | Video gravity for back camera (default: `resizeAspectFill`)  |
 
 ## Functions
 
