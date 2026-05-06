@@ -2,29 +2,51 @@ name: Publish Package
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
 
 permissions:
-  id-token: write # Required for OIDC
+  id-token: write # Required for OIDC / Trusted Publishers
   contents: read
 
 jobs:
   publish:
     runs-on: macos-15
-    env:
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Get version from package.json
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Check if version exists on npm
+        id: npm_check
+        run: |
+          if npm view expo-dual-camera@${{ steps.version.outputs.version }} --json 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Node.js
+        if: steps.npm_check.outputs.exists == 'false'
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
-      # Ensure npm 11.5.1 or later is installed
       - name: Update npm
+        if: steps.npm_check.outputs.exists == 'false'
         run: npm install -g npm@latest
-      - run: npm install
-      - run: npm run build
-      - run: npm publish
+
+      - name: Install dependencies
+        if: steps.npm_check.outputs.exists == 'false'
+        run: npm install
+
+      - name: Build
+        if: steps.npm_check.outputs.exists == 'false'
+        run: npm run build
+
+      - name: Publish to npm
+        if: steps.npm_check.outputs.exists == 'false'
+        run: npm publish --provenance --access public
