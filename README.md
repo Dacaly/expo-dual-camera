@@ -6,7 +6,7 @@ Native dual camera support for Expo apps using AVCaptureMultiCamSession (iOS) an
 
 - True simultaneous front and back camera capture
 - Raw frame control - style the cameras however you want in your app
-- iOS 16+ with AVCaptureMultiCamSession support
+- iOS 13+ with AVCaptureMultiCamSession support
 - Android API 24+ with CameraX
 
 ## Installation
