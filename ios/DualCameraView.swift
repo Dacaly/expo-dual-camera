@@ -1,7 +1,6 @@
 import UIKit
 import AVFoundation
 
-@objc(ExpoDualCameraView)
 public class DualCameraView: UIView {
 
     // MARK: - Properties
@@ -13,8 +12,8 @@ public class DualCameraView: UIView {
 
     private var frontFrame: CGRect = .zero
     private var backFrame: CGRect = .zero
-    private var frontGravity: AVCaptureVideoPreviewLayer.Gravity = .resizeAspectFill
-    private var backGravity: AVCaptureVideoPreviewLayer.Gravity = .resizeAspectFill
+    private var frontGravity: AVLayerVideoGravity = .resizeAspectFill
+    private var backGravity: AVLayerVideoGravity = .resizeAspectFill
 
     private var errorLabel: UILabel?
     private var hasError = false
@@ -96,7 +95,7 @@ public class DualCameraView: UIView {
         }
     }
 
-    private func gravityFromString(_ gravity: String) -> AVCaptureVideoPreviewLayer.Gravity {
+    private func gravityFromString(_ gravity: String) -> AVLayerVideoGravity {
         switch gravity {
         case "resize":
             return .resize
