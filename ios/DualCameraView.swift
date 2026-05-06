@@ -145,7 +145,7 @@ public class DualCameraView: UIView {
 
 
     private func startMultiCamSession() {
-        guard AVCaptureMultiCamSession.isSupported else {
+        guard AVCaptureMultiCamSession.isMultiCamSupported else {
             showError("Multi-camera not supported on this device")
             return
         }
