@@ -4,13 +4,16 @@ plugins {
 }
 
 group = 'expo.modules.dualcamera'
-version = '0.1.0'
+def packageJson = new groovy.json.JsonSlurper().parseText(
+  new File(rootDir, '../package.json').text
+)
+version = packageJson.version
 
 android {
   namespace "expo.modules.dualcamera"
   defaultConfig {
     versionCode 1
-    versionName "0.1.0"
+    versionName packageJson.version
   }
   lintOptions {
     abortOnError false

@@ -2,6 +2,7 @@ package expo.modules.dualcamera
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -11,8 +12,31 @@ class ExpoDualCameraModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ExpoDualCamera")
 
-    Function("isSupported") {
-      return@Function true
+    AsyncFunction("isSupported") { promise: Promise ->
+      val context = appContext.reactContext ?: run {
+        promise.resolve(false); return@AsyncFunction
+      }
+      val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+      cameraProviderFuture.addListener({
+        val provider = cameraProviderFuture.get()
+        val supported = provider.availableConcurrentCameraInfos.isNotEmpty()
+        promise.resolve(supported)
+      }, ContextCompat.getMainExecutor(context))
+    }
+
+    View(DualCameraView::class) {
+      Prop("frontFrame") { view: DualCameraView, frame: Map<String, Int> ->
+        view.setFrontFrame(frame)
+      }
+      Prop("backFrame") { view: DualCameraView, frame: Map<String, Int> ->
+        view.setBackFrame(frame)
+      }
+      Prop("frontGravity") { view: DualCameraView, gravity: String ->
+        view.setFrontGravity(gravity)
+      }
+      Prop("backGravity") { view: DualCameraView, gravity: String ->
+        view.setBackGravity(gravity)
+      }
     }
 
     AsyncFunction("checkCameraPermission") { promise: Promise ->
@@ -52,10 +76,6 @@ class ExpoDualCameraModule : Module() {
       ) { result ->
         promise.resolve(result.isGranted)
       }
-    }
-
-    registerViewManager(DualCameraViewManager::class) {
-      Name("ExpoDualCamera")
     }
   }
 }

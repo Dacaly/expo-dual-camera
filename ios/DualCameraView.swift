@@ -141,6 +141,9 @@ public class DualCameraView: UIView {
         }
     }
 
+    private let sessionQueue = DispatchQueue(label: "com.expodualcamera.session")
+
+
     private func startMultiCamSession() {
         guard AVCaptureMultiCamSession.isSupported else {
             showError("Multi-camera not supported on this device")
@@ -152,76 +155,62 @@ public class DualCameraView: UIView {
         let session = AVCaptureMultiCamSession()
 
         guard let frontDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front),
-              let frontInput = try? AVCaptureDeviceInput(device: frontDevice) else {
-            showError("Front camera unavailable")
+            let frontInput = try? AVCaptureDeviceInput(device: frontDevice),
+            let backDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+            let backInput = try? AVCaptureDeviceInput(device: backDevice) else {
+            showError("Camera unavailable")
             return
         }
 
-        guard let backDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
-              let backInput = try? AVCaptureDeviceInput(device: backDevice) else {
-            showError("Back camera unavailable")
-            return
-        }
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
 
-        session.beginConfiguration()
+            session.beginConfiguration()
 
-        if session.canAddInput(frontInput) {
-            session.addInputWithNoConnections(frontInput)
-        }
-        let frontOutput = AVCaptureVideoDataOutput()
-        frontOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
-        if session.canAddOutput(frontOutput) {
-            session.addOutputWithNoConnections(frontOutput)
-        }
+            if session.canAddInput(frontInput) { session.addInputWithNoConnections(frontInput) }
+            if session.canAddInput(backInput) { session.addInputWithNoConnections(backInput) }
 
-        if session.canAddInput(backInput) {
-            session.addInputWithNoConnections(backInput)
-        }
-        let backOutput = AVCaptureVideoDataOutput()
-        backOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
-        if session.canAddOutput(backOutput) {
-            session.addOutputWithNoConnections(backOutput)
-        }
+            let frontOutput = AVCaptureVideoDataOutput()
+            let backOutput = AVCaptureVideoDataOutput()
+            if session.canAddOutput(frontOutput) { session.addOutputWithNoConnections(frontOutput) }
+            if session.canAddOutput(backOutput) { session.addOutputWithNoConnections(backOutput) }
 
-        guard let frontPort = frontInput.ports.first,
-              let backPort = backInput.ports.first else {
-            showError("Could not get camera ports")
-            return
-        }
+            guard let frontPort = frontInput.ports.first,
+                let backPort = backInput.ports.first else {
+                DispatchQueue.main.async { self.showError("Could not get camera ports") }
+                return
+            }
 
-        let frontConnection = AVCaptureConnection(inputPorts: [frontPort], output: frontOutput)
-        if session.canAddConnection(frontConnection) {
-            session.addConnection(frontConnection)
-        }
+            let frontConnection = AVCaptureConnection(inputPorts: [frontPort], output: frontOutput)
+            let backConnection = AVCaptureConnection(inputPorts: [backPort], output: backOutput)
+            if session.canAddConnection(frontConnection) { session.addConnection(frontConnection) }
+            if session.canAddConnection(backConnection) { session.addConnection(backConnection) }
 
-        let backConnection = AVCaptureConnection(inputPorts: [backPort], output: backOutput)
-        if session.canAddConnection(backConnection) {
-            session.addConnection(backConnection)
-        }
+            session.commitConfiguration()
 
-        session.commitConfiguration()
-
-        let frontPreview = AVCaptureVideoPreviewLayer(session: session, qsPort: frontPort)
-        frontPreview.videoGravity = frontGravity
-        frontPreview.frame = frontFrame
-
-        let backPreview = AVCaptureVideoPreviewLayer(session: session, qsPort: backPort)
-        backPreview.videoGravity = backGravity
-        backPreview.frame = backFrame
-
-        layer.insertSublayer(backPreview, at: 0)
-        layer.insertSublayer(frontPreview, at: 0)
-
-        self.frontPreviewLayer = frontPreview
-        self.backPreviewLayer = backPreview
-        self.multiCamSession = session
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            session.startRunning()
+            // Capture ports for preview layer creation on main thread
             DispatchQueue.main.async {
-                self?.isSessionRunning = session.isRunning
+                let frontPreview = AVCaptureVideoPreviewLayer(session: session, qsPort: frontPort)
+                frontPreview.videoGravity = self.frontGravity
+                frontPreview.frame = self.frontFrame
+
+                let backPreview = AVCaptureVideoPreviewLayer(session: session, qsPort: backPort)
+                backPreview.videoGravity = self.backGravity
+                backPreview.frame = self.backFrame
+
+                self.layer.insertSublayer(backPreview, at: 0)
+                self.layer.insertSublayer(frontPreview, at: 0)
+                self.frontPreviewLayer = frontPreview
+                self.backPreviewLayer = backPreview
+                self.multiCamSession = session
+            }
+
+            session.startRunning()
+
+            DispatchQueue.main.async {
+                self.isSessionRunning = session.isRunning
                 if !session.isRunning {
-                    self?.showError("Failed to start camera session")
+                    self.showError("Failed to start camera session")
                 }
             }
         }
