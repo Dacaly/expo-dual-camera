@@ -1,1 +1,1 @@
-module.exports = require('./plugins/withDualCamera.js');
+module.exports = require('./plugins/withDualCamera');
