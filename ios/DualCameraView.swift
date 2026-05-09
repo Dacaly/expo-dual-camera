@@ -1,8 +1,8 @@
+import ExpoModulesCore
 import UIKit
 import AVFoundation
 
-@objc(ExpoDualCameraView)
-public class DualCameraView: UIView {
+public class DualCameraView: ExpoView {
 
     // MARK: - Properties
 
@@ -21,8 +21,8 @@ public class DualCameraView: UIView {
 
     // MARK: - Initialization
 
-    public override init(frame: CGRect) {
-        super.init(frame: frame)
+    public required init(appContext: AppContext? = nil) {
+        super.init(appContext: appContext)
         backgroundColor = .black
     }
 
