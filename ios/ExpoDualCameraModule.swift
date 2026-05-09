@@ -10,6 +10,8 @@ public class ExpoDualCameraModule: Module {
     }
 
     View(DualCameraView.self) {
+      ViewName("ExpoDualCamera")
+
       Prop("frontFrame") { (view: DualCameraView, frame: [String: CGFloat]) in
         view.frontFrameProp = frame
       }
