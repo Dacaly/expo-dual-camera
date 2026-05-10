@@ -11,10 +11,19 @@ public class DualCameraView: ExpoView {
     private var backPreviewLayer: AVCaptureVideoPreviewLayer?
     private var isSessionRunning = false
 
-    private var frontFrame: CGRect = .zero
-    private var backFrame: CGRect = .zero
-    private var frontGravity: AVLayerVideoGravity = .resizeAspectFill
-    private var backGravity: AVLayerVideoGravity = .resizeAspectFill
+    enum CameraSide {
+        case front, back
+    }
+
+    private struct CameraConfig {
+        var frame: CGRect = .zero
+        var zIndex: CGFloat = 0
+        var borderRadius: CGFloat = 0
+        var gravity: AVLayerVideoGravity = .resizeAspectFill
+    }
+
+    private var frontConfig = CameraConfig()
+    private var backConfig = CameraConfig()
 
     private var errorLabel: UILabel?
     private var hasError = false
@@ -51,61 +60,50 @@ public class DualCameraView: ExpoView {
     // MARK: - Frame Calculations
 
     private func updatePreviewLayerFrames() {
-        frontPreviewLayer?.frame = frontFrame
-        backPreviewLayer?.frame = backFrame
+        frontPreviewLayer?.frame = frontConfig.frame
+        backPreviewLayer?.frame = backConfig.frame
         errorLabel?.frame = bounds
     }
 
     // MARK: - Prop Setters
 
-    public var frontFrameProp: [String: CGFloat] = [:] {
-        didSet {
-            frontFrame = CGRect(
-                x: frontFrameProp["x"] ?? 0,
-                y: frontFrameProp["y"] ?? 0,
-                width: frontFrameProp["width"] ?? 0,
-                height: frontFrameProp["height"] ?? 0
-            )
-            frontPreviewLayer?.frame = frontFrame
-        }
-    }
+    public func setCamera(_ side: CameraSide, config: [String: Any]) {
+        let x = config["x"] as? CGFloat ?? 0
+        let y = config["y"] as? CGFloat ?? 0
+        let w = config["width"] as? CGFloat ?? 0
+        let h = config["height"] as? CGFloat ?? 0
+        let zIndex = config["zIndex"] as? CGFloat ?? 0
+        let borderRadius = config["borderRadius"] as? CGFloat ?? 0
+        let objectFit = config["objectFit"] as? String ?? "cover"
 
-    public var backFrameProp: [String: CGFloat] = [:] {
-        didSet {
-            backFrame = CGRect(
-                x: backFrameProp["x"] ?? 0,
-                y: backFrameProp["y"] ?? 0,
-                width: backFrameProp["width"] ?? 0,
-                height: backFrameProp["height"] ?? 0
-            )
-            backPreviewLayer?.frame = backFrame
+        let gravity: AVLayerVideoGravity = switch objectFit {
+            case "contain": .resizeAspect
+            case "fill": .resize
+            default: .resizeAspectFill
         }
-    }
 
-    public var frontGravityProp: String = "resizeAspectFill" {
-        didSet {
-            frontGravity = gravityFromString(frontGravityProp)
-            frontPreviewLayer?.videoGravity = frontGravity
-        }
-    }
+        let cfg = CameraConfig(
+            frame: CGRect(x: x, y: y, width: w, height: h),
+            zIndex: zIndex,
+            borderRadius: borderRadius,
+            gravity: gravity
+        )
 
-    public var backGravityProp: String = "resizeAspectFill" {
-        didSet {
-            backGravity = gravityFromString(backGravityProp)
-            backPreviewLayer?.videoGravity = backGravity
-        }
-    }
-
-    private func gravityFromString(_ gravity: String) -> AVLayerVideoGravity {
-        switch gravity {
-        case "resize":
-            return .resize
-        case "resizeAspect":
-            return .resizeAspect
-        case "resizeAspectFill":
-            return .resizeAspectFill
-        default:
-            return .resizeAspectFill
+        switch side {
+        case .front:
+            frontConfig = cfg
+            frontPreviewLayer?.frame = cfg.frame
+            frontPreviewLayer?.videoGravity = cfg.gravity
+            frontPreviewLayer?.cornerRadius = cfg.borderRadius
+            frontPreviewLayer?.masksToBounds = cfg.borderRadius > 0
+            frontPreviewLayer?.zPosition = cfg.zIndex
+        case .back:
+            backConfig = cfg
+            backPreviewLayer?.frame = cfg.frame
+            backPreviewLayer?.videoGravity = cfg.gravity
+            backPreviewLayer?.cornerRadius = cfg.borderRadius
+            backPreviewLayer?.masksToBounds = cfg.borderRadius > 0
+            backPreviewLayer?.zPosition = cfg.zIndex
         }
     }
 
@@ -212,11 +210,13 @@ public class DualCameraView: ExpoView {
                     session.addConnection(backPreviewConnection)
                 }
 
-                self.layer.insertSublayer(backPreview, at: 0)
-                self.layer.insertSublayer(frontPreview, at: 0)
+                self.layer.addSublayer(backPreview)
+                self.layer.addSublayer(frontPreview)
                 self.frontPreviewLayer = frontPreview
                 self.backPreviewLayer = backPreview
                 self.multiCamSession = session
+                self.setCamera(.front, config: [:])
+                self.setCamera(.back, config: [:])
             }
 
             session.startRunning()

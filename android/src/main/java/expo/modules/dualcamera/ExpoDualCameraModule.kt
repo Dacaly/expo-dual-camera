@@ -25,18 +25,12 @@ class ExpoDualCameraModule : Module() {
     }
 
     View(DualCameraView::class) {
-      Prop("frontFrame") { view: DualCameraView, frame: Map<String, Int> ->
-        view.setFrontFrame(frame)
-      }
-      Prop("backFrame") { view: DualCameraView, frame: Map<String, Int> ->
-        view.setBackFrame(frame)
-      }
-      Prop("frontGravity") { view: DualCameraView, gravity: String ->
-        view.setFrontGravity(gravity)
-      }
-      Prop("backGravity") { view: DualCameraView, gravity: String ->
-        view.setBackGravity(gravity)
-      }
+        Prop("frontCamera") { view: DualCameraView, config: Map<String, Any> ->
+            view.setCameraConfig("front", config)
+        }
+        Prop("backCamera") { view: DualCameraView, config: Map<String, Any> ->
+            view.setCameraConfig("back", config)
+        }
     }
 
     AsyncFunction("checkCameraPermission") { promise: Promise ->

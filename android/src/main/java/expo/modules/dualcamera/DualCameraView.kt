@@ -25,11 +25,6 @@ class DualCameraView(context: Context) : FrameLayout(context) {
     private var cameraProvider: ProcessCameraProvider? = null
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
-    private var frontFrameMap: Map<String, Int>? = null
-    private var backFrameMap: Map<String, Int>? = null
-    private var frontGravity: String = "resizeAspectFill"
-    private var backGravity: String = "resizeAspectFill"
-
     private var isCameraRunning = false
     private var permissionGranted = false
 
@@ -127,64 +122,37 @@ class DualCameraView(context: Context) : FrameLayout(context) {
         backPreview.visibility = View.GONE
     }
 
-    fun updateProps() {
-        frontFrameMap?.let { map ->
-            val x = map["x"] ?: 0
-            val y = map["y"] ?: 0
-            val width = map["width"] ?: LayoutParams.MATCH_PARENT
-            val height = map["height"] ?: LayoutParams.MATCH_PARENT
+    fun setCameraConfig(side: String, config: Map<String, Any>) {
+        val x = (config["x"] as? Number)?.toInt() ?: 0
+        val y = (config["y"] as? Number)?.toInt() ?: 0
+        val w = (config["width"] as? Number)?.toInt() ?: LayoutParams.MATCH_PARENT
+        val h = (config["height"] as? Number)?.toInt() ?: LayoutParams.MATCH_PARENT
+        val zIndex = (config["zIndex"] as? Number)?.toFloat() ?: 0f
+        val borderRadius = (config["borderRadius"] as? Number)?.toFloat() ?: 0f
+        val objectFit = config["objectFit"] as? String ?: "cover"
 
-            frontPreview.layoutParams = LayoutParams(width, height).apply {
-                leftMargin = x
-                topMargin = y
+        val scaleType = when (objectFit) {
+            "contain" -> PreviewView.ScaleType.FIT_CENTER
+            "fill" -> PreviewView.ScaleType.FIT_CENTER
+            else -> PreviewView.ScaleType.FILL_CENTER
+        }
+
+        val preview = if (side == "front") frontPreview else backPreview
+
+        preview.layoutParams = LayoutParams(w, h).apply {
+            leftMargin = x
+            topMargin = y
+        }
+        preview.scaleType = scaleType
+        preview.translationZ = zIndex
+        preview.clipToOutline = borderRadius > 0
+        if (borderRadius > 0) {
+            preview.outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, borderRadius)
+                }
             }
         }
-
-        backFrameMap?.let { map ->
-            val x = map["x"] ?: 0
-            val y = map["y"] ?: 0
-            val width = map["width"] ?: LayoutParams.MATCH_PARENT
-            val height = map["height"] ?: LayoutParams.MATCH_PARENT
-
-            backPreview.layoutParams = LayoutParams(width, height).apply {
-                leftMargin = x
-                topMargin = y
-            }
-        }
-
-        frontPreview.scaleType = when (frontGravity) {
-            "resize" -> PreviewView.ScaleType.FIT_CENTER
-            "resizeAspect" -> PreviewView.ScaleType.FIT_CENTER
-            "resizeAspectFill" -> PreviewView.ScaleType.FILL_CENTER
-            else -> PreviewView.ScaleType.FIT_CENTER
-        }
-
-        backPreview.scaleType = when (backGravity) {
-            "resize" -> PreviewView.ScaleType.FIT_CENTER
-            "resizeAspect" -> PreviewView.ScaleType.FIT_CENTER
-            "resizeAspectFill" -> PreviewView.ScaleType.FILL_CENTER
-            else -> PreviewView.ScaleType.FIT_CENTER
-        }
-    }
-
-    fun setFrontFrame(frame: Map<String, Int>) {
-        frontFrameMap = frame
-        updateProps()
-    }
-
-    fun setBackFrame(frame: Map<String, Int>) {
-        backFrameMap = frame
-        updateProps()
-    }
-
-    fun setFrontGravity(gravity: String) {
-        frontGravity = gravity
-        updateProps()
-    }
-
-    fun setBackGravity(gravity: String) {
-        backGravity = gravity
-        updateProps()
     }
 
     fun setPermissionGranted(granted: Boolean) {

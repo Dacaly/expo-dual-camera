@@ -1,16 +1,17 @@
-export type VideoGravity = 'resize' | 'resizeAspect' | 'resizeAspectFill';
-
-export type Frame = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+export type CameraStyle = {
+  top?: number;
+  left?: number;
+  right?: number;
+  bottom?: number;
+  width?: number | string; // number (px) or '100%'
+  height?: number | string;
+  zIndex?: number;
+  borderRadius?: number;
+  objectFit?: "cover" | "contain" | "fill";
 };
 
 export type DualCameraProps = {
-  frontFrame: Frame;
-  backFrame: Frame;
-  frontGravity?: VideoGravity;
-  backGravity?: VideoGravity;
-  style?: object;
+  style?: any;
+  frontStyle?: CameraStyle;
+  backStyle?: CameraStyle;
 };
