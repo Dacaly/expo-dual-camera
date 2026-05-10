@@ -25,12 +25,12 @@ class ExpoDualCameraModule : Module() {
     }
 
     View(DualCameraView::class) {
-        Prop("frontCamera") { view: DualCameraView, config: Map<String, Any> ->
-            view.setCameraConfig("front", config)
-        }
-        Prop("backCamera") { view: DualCameraView, config: Map<String, Any> ->
-            view.setCameraConfig("back", config)
-        }
+      Prop("side") { view: DualCameraView, side: String ->
+        view.setSide(side)
+      }
+      Prop("lens") { view: DualCameraView, lens: String ->
+        view.setLens(lens)
+      }
     }
 
     AsyncFunction("checkCameraPermission") { promise: Promise ->

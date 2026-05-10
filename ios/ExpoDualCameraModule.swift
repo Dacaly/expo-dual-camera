@@ -10,11 +10,11 @@ public class ExpoDualCameraModule: Module {
     }
 
     View(DualCameraView.self) {
-      Prop("frontCamera") { (view: DualCameraView, config: [String: Any]) in
-        view.setCamera(.front, config: config)
+      Prop("side") { (view: DualCameraView, side: String) in
+        view.setSide(side)
       }
-      Prop("backCamera") { (view: DualCameraView, config: [String: Any]) in
-        view.setCamera(.back, config: config)
+      Prop("lens") { (view: DualCameraView, lens: String) in
+        view.setLens(lens)
       }
     }
   }

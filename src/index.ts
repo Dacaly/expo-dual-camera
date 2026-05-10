@@ -1,9 +1,7 @@
-import ExpoDualCameraModule from './ExpoDualCameraModule';
-import type { DualCameraProps } from './ExpoDualCamera.types';
-export { DualCamera } from './DualCameraView';
+import ExpoDualCameraModule from "./ExpoDualCameraModule";
+export { DualCameraFront, DualCameraBack } from "./DualCameraView";
+export type { DualCameraFrontProps, DualCameraBackProps } from "./ExpoDualCamera.types";
 
 export async function isSupported(): Promise<boolean> {
   return await ExpoDualCameraModule.isSupported();
 }
-
-export type { DualCameraProps };
