@@ -1,6 +1,6 @@
 {
   "name": "expo-dual-camera",
-  "version": "55.0.10",
+  "version": "55.0.11",
   "description": "Native dual camera support using AVCaptureMultiCamSession for iOS and CameraX for Android",
   "main": "build/index.js",
   "types": "build/index.d.ts",
@@ -10,8 +10,7 @@
     "ios",
     "app.plugin.js",
     "plugins",
-    "expo-module.config.json",
-    "*.podspec"
+    "expo-module.config.json"
   ],
   "scripts": {
     "build": "expo-module build",
