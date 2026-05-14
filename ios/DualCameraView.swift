@@ -13,6 +13,7 @@ public class DualCameraView: ExpoView {
     // MARK: - Events
 
     let onReady = EventDispatcher()
+    let onError = EventDispatcher()
 
     // MARK: - Initialization
 
@@ -93,6 +94,8 @@ public class DualCameraView: ExpoView {
         errorLabel?.text = message
         errorLabel?.frame = bounds
         errorLabel?.isHidden = false
+
+        onError(["message": message])
     }
 
     // MARK: - Session Callbacks

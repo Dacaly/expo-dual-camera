@@ -4,10 +4,12 @@ import { DualCameraFrontProps, DualCameraBackProps } from "./ExpoDualCamera.type
 
 const NativeDualCamera = requireNativeViewManager("ExpoDualCamera");
 
-export function DualCameraFront({ style, onReady }: DualCameraFrontProps) {
-  return <NativeDualCamera style={style} side="front" onReady={onReady} />;
+export function DualCameraFront({ style, onReady, onError }: DualCameraFrontProps) {
+  return <NativeDualCamera style={style} side="front" onReady={onReady} onError={onError} />;
 }
 
-export function DualCameraBack({ style, lens = "wide", onReady }: DualCameraBackProps) {
-  return <NativeDualCamera style={style} side="back" lens={lens} onReady={onReady} />;
+export function DualCameraBack({ style, lens = "wide", onReady, onError }: DualCameraBackProps) {
+  return (
+    <NativeDualCamera style={style} side="back" lens={lens} onReady={onReady} onError={onError} />
+  );
 }

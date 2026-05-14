@@ -14,7 +14,9 @@ class DualCameraView(context: Context) : FrameLayout(context) {
     private val previewView: PreviewView
     private val errorView: TextView
     private var side: String = "back"
+
     val onReady by EventDispatcher()
+    val onError by EventDispatcher()
 
     init {
         previewView = PreviewView(context).apply {
@@ -63,6 +65,7 @@ class DualCameraView(context: Context) : FrameLayout(context) {
         errorView.text = message
         errorView.visibility = View.VISIBLE
         previewView.visibility = View.GONE
+        onError(mapOf("message" to message))
     }
 
     fun sessionDidStart() {

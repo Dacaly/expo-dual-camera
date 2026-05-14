@@ -18,6 +18,7 @@ import { useCallback, useRef, useState } from "react";
  */
 export function useIsDualCameraReady() {
   const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const readyRef = useRef({ front: false, back: false });
 
   const check = () => {
@@ -36,11 +37,36 @@ export function useIsDualCameraReady() {
     check();
   }, []);
 
+  const onFrontError = useCallback(
+    (e: { nativeEvent: { message: string } }) => {
+      setError(e.nativeEvent.message);
+      setIsReady(false);
+    },
+    []
+  );
+
+  const onBackError = useCallback(
+    (e: { nativeEvent: { message: string } }) => {
+      setError(e.nativeEvent.message);
+      setIsReady(false);
+    },
+    []
+  );
+
   /** Call this when tearing down / switching modes to reset the state. */
   const reset = useCallback(() => {
     readyRef.current = { front: false, back: false };
     setIsReady(false);
+    setError(null);
   }, []);
 
-  return { isReady, onFrontReady, onBackReady, reset } as const;
+  return {
+    isReady,
+    error,
+    onFrontReady,
+    onBackReady,
+    onFrontError,
+    onBackError,
+    reset,
+  } as const;
 }
