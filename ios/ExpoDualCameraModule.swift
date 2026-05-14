@@ -10,6 +10,8 @@ public class ExpoDualCameraModule: Module {
     }
 
     View(DualCameraView.self) {
+      Events("onReady")
+
       Prop("side") { (view: DualCameraView, side: String) in
         view.setSide(side)
       }

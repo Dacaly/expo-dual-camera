@@ -75,6 +75,8 @@ object DualCameraSessionManager {
             front.showPreview()
             back.showPreview()
             isRunning = true
+            front.sessionDidStart()
+            back.sessionDidStart()
 
         } catch (e: Exception) {
             front.showError("Failed to start cameras: ${e.message}")

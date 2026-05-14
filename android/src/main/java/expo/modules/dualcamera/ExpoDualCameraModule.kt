@@ -25,6 +25,8 @@ class ExpoDualCameraModule : Module() {
     }
 
     View(DualCameraView::class) {
+      Events("onReady")
+
       Prop("side") { view: DualCameraView, side: String ->
         view.setSide(side)
       }

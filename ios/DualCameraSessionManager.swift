@@ -145,7 +145,10 @@ class DualCameraSessionManager {
 
             DispatchQueue.main.async {
                 self.isRunning = session.isRunning
-                if !session.isRunning {
+                if session.isRunning {
+                    frontView.sessionDidStart()
+                    backView.sessionDidStart()
+                } else {
                     frontView.showError("Failed to start camera session")
                     backView.showError("Failed to start camera session")
                 }

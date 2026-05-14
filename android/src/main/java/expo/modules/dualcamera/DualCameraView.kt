@@ -7,12 +7,14 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.camera.view.PreviewView
+import expo.modules.kotlin.viewevent.EventDispatcher
 
 class DualCameraView(context: Context) : FrameLayout(context) {
 
     private val previewView: PreviewView
     private val errorView: TextView
     private var side: String = "back"
+    val onReady by EventDispatcher()
 
     init {
         previewView = PreviewView(context).apply {
@@ -61,6 +63,10 @@ class DualCameraView(context: Context) : FrameLayout(context) {
         errorView.text = message
         errorView.visibility = View.VISIBLE
         previewView.visibility = View.GONE
+    }
+
+    fun sessionDidStart() {
+        onReady(mapOf<String, Any>())
     }
 
     override fun onAttachedToWindow() {

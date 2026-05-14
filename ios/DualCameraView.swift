@@ -10,6 +10,10 @@ public class DualCameraView: ExpoView {
     private var side: String = "back"
     private var errorLabel: UILabel?
 
+    // MARK: - Events
+
+    let onReady = EventDispatcher()
+
     // MARK: - Initialization
 
     public required init(appContext: AppContext? = nil) {
@@ -89,6 +93,12 @@ public class DualCameraView: ExpoView {
         errorLabel?.text = message
         errorLabel?.frame = bounds
         errorLabel?.isHidden = false
+    }
+
+    // MARK: - Session Callbacks
+
+    func sessionDidStart() {
+        onReady([:])
     }
 
     // MARK: - Cleanup
