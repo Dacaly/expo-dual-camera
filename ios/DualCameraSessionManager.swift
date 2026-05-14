@@ -1,12 +1,26 @@
 import AVFoundation
 import UIKit
 
+// MARK: - Capture Options & Result
+
+struct CaptureOptions {
+    let quality: Double
+    let base64: Bool
+
+    init(from dict: [String: Any]?) {
+        quality = dict?["quality"] as? Double ?? 1.0
+        base64 = dict?["base64"] as? Bool ?? false
+    }
+}
+
 // MARK: - Photo Capture Delegate
 
 private class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
-    private let completion: (Result<String, Error>) -> Void
+    private let options: CaptureOptions
+    private let completion: (Result<[String: Any], Error>) -> Void
 
-    init(completion: @escaping (Result<String, Error>) -> Void) {
+    init(options: CaptureOptions, completion: @escaping (Result<[String: Any], Error>) -> Void) {
+        self.options = options
         self.completion = completion
     }
 
@@ -19,15 +33,31 @@ private class PhotoCaptureDelegate: NSObject, AVCapturePhotoCaptureDelegate {
             completion(.failure(error))
             return
         }
-        guard let data = photo.fileDataRepresentation() else {
+        guard var data = photo.fileDataRepresentation() else {
             completion(.failure(DualCameraError.noPhotoData))
             return
         }
+
+        let dimensions = photo.resolvedSettings.photoDimensions
+
+        if options.quality < 1.0, let image = UIImage(data: data),
+           let compressed = image.jpegData(compressionQuality: CGFloat(options.quality)) {
+            data = compressed
+        }
+
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".jpg")
         do {
             try data.write(to: url)
-            completion(.success(url.absoluteString))
+            var result: [String: Any] = [
+                "uri": url.absoluteString,
+                "width": Int(dimensions.width),
+                "height": Int(dimensions.height),
+            ]
+            if options.base64 {
+                result["base64"] = data.base64EncodedString()
+            }
+            completion(.success(result))
         } catch {
             completion(.failure(error))
         }
@@ -61,26 +91,43 @@ class DualCameraSessionManager {
     private weak var frontView: DualCameraView?
     private weak var backView: DualCameraView?
 
-    // Session state (main thread only)
+    // Session state
     private var session: AVCaptureMultiCamSession?
     private(set) var isRunning = false
     private var isPaused = false
     private var backLens: String = "wide"
 
-    // Devices (set during config on sessionQueue, read on any thread — safe for AVCaptureDevice)
+    // Devices
     private var frontDevice: AVCaptureDevice?
     private var backDevice: AVCaptureDevice?
 
-    // Photo outputs (set during config)
+    // Photo outputs
     private var frontPhotoOutput: AVCapturePhotoOutput?
     private var backPhotoOutput: AVCapturePhotoOutput?
 
-    // Hold strong refs to in-flight photo delegates so ARC doesn't deallocate them
+    // In-flight photo delegates
     private var activePhotoDelegates: [UUID: PhotoCaptureDelegate] = [:]
+
+    // Settings (set via view props, used during capture)
+    private var flashMode: AVCaptureDevice.FlashMode = .off
 
     private let sessionQueue = DispatchQueue(label: "com.expodualcamera.session")
 
     private init() {}
+
+    // MARK: - Permission Helpers
+
+    static func permissionResponse() -> [String: Any] {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            return ["status": "granted", "granted": true, "canAskAgain": true, "expires": "never"]
+        case .denied, .restricted:
+            return ["status": "denied", "granted": false, "canAskAgain": false, "expires": "never"]
+        default:
+            return ["status": "undetermined", "granted": false, "canAskAgain": true, "expires": "never"]
+        }
+    }
 
     // MARK: - Registration
 
@@ -103,6 +150,52 @@ class DualCameraSessionManager {
             stop()
             startIfReady()
         }
+    }
+
+    // MARK: - Props forwarded from views
+
+    func setZoom(side: String, normalizedZoom: Double) {
+        let device = (side == "front") ? frontDevice : backDevice
+        guard let dev = device else { return }
+
+        let minZoom = dev.minAvailableVideoZoomFactor
+        let maxZoom = dev.maxAvailableVideoZoomFactor
+        let factor = minZoom + CGFloat(normalizedZoom) * (maxZoom - minZoom)
+
+        do {
+            try dev.lockForConfiguration()
+            dev.videoZoomFactor = factor
+            dev.unlockForConfiguration()
+        } catch {}
+    }
+
+    func setTorch(_ enabled: Bool) {
+        guard let device = backDevice, device.hasTorch else { return }
+        do {
+            try device.lockForConfiguration()
+            device.torchMode = enabled ? .on : .off
+            device.unlockForConfiguration()
+        } catch {}
+    }
+
+    func setFlash(_ mode: String) {
+        switch mode {
+        case "on": flashMode = .on
+        case "auto": flashMode = .auto
+        default: flashMode = .off
+        }
+    }
+
+    func setAutofocus(side: String, mode: String) {
+        let device = (side == "front") ? frontDevice : backDevice
+        guard let dev = device, dev.isFocusModeSupported(.continuousAutoFocus) else { return }
+
+        do {
+            try dev.lockForConfiguration()
+            // expo-camera: "on" = focus once and lock, "off" = continuous autofocus
+            dev.focusMode = (mode == "on") ? .autoFocus : .continuousAutoFocus
+            dev.unlockForConfiguration()
+        } catch {}
     }
 
     // MARK: - Lens Selection
@@ -205,7 +298,7 @@ class DualCameraSessionManager {
 
             session.commitConfiguration()
 
-            // --- Preview layers (must be on main) ---
+            // --- Preview layers ---
             DispatchQueue.main.async {
                 let frontPreview = AVCaptureVideoPreviewLayer()
                 frontPreview.setSessionWithNoConnection(session)
@@ -244,12 +337,7 @@ class DualCameraSessionManager {
     }
 
     private func stop() {
-        // Reject any pending photo captures
-        let pending = activePhotoDelegates
         activePhotoDelegates.removeAll()
-        for (_, _) in pending {
-            // Delegates will be deallocated; captures in flight will fail silently
-        }
 
         sessionQueue.async { [weak self] in
             self?.session?.stopRunning()
@@ -270,7 +358,7 @@ class DualCameraSessionManager {
 
     // MARK: - Pause / Resume
 
-    func pause() {
+    func pausePreview() {
         guard isRunning, !isPaused else { return }
         isPaused = true
         sessionQueue.async { [weak self] in
@@ -278,7 +366,7 @@ class DualCameraSessionManager {
         }
     }
 
-    func resume() {
+    func resumePreview() {
         guard isPaused else { return }
         isPaused = false
         sessionQueue.async { [weak self] in
@@ -299,7 +387,7 @@ class DualCameraSessionManager {
 
     // MARK: - Photo Capture
 
-    func capturePhoto(side: String, completion: @escaping (Result<String, Error>) -> Void) {
+    func takePicture(side: String, options: CaptureOptions, completion: @escaping (Result<[String: Any], Error>) -> Void) {
         guard isRunning, !isPaused else {
             completion(.failure(DualCameraError.sessionNotRunning))
             return
@@ -312,42 +400,19 @@ class DualCameraSessionManager {
         }
 
         let delegateID = UUID()
-        let delegate = PhotoCaptureDelegate { [weak self] result in
+        let delegate = PhotoCaptureDelegate(options: options) { [weak self] result in
             self?.activePhotoDelegates.removeValue(forKey: delegateID)
             completion(result)
         }
         activePhotoDelegates[delegateID] = delegate
 
         let settings = AVCapturePhotoSettings()
+        if side == "back", photoOutput.supportedFlashModes.contains(flashMode) {
+            settings.flashMode = flashMode
+        }
+
         sessionQueue.async {
             photoOutput.capturePhoto(with: settings, delegate: delegate)
-        }
-    }
-
-    // MARK: - Torch
-
-    func setTorch(_ enabled: Bool) throws {
-        guard let device = backDevice, device.hasTorch else {
-            throw DualCameraError.torchUnavailable
-        }
-        try device.lockForConfiguration()
-        device.torchMode = enabled ? .on : .off
-        device.unlockForConfiguration()
-    }
-
-    // MARK: - Zoom
-
-    func setZoom(side: String, factor: Double) {
-        let device = (side == "front") ? frontDevice : backDevice
-        guard let dev = device else { return }
-
-        let clamped = min(max(CGFloat(factor), 1.0), dev.activeFormat.videoMaxZoomFactor)
-        do {
-            try dev.lockForConfiguration()
-            dev.videoZoomFactor = clamped
-            dev.unlockForConfiguration()
-        } catch {
-            frontView?.showError("Zoom failed: \(error.localizedDescription)")
         }
     }
 }

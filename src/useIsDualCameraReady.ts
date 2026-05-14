@@ -1,19 +1,32 @@
 import { useCallback, useRef, useState } from "react";
+import type { CameraMountError } from "./ExpoDualCamera.types";
 
 /**
  * Tracks readiness of the dual camera session.
  *
- * Both the front and back views must fire their `onReady` event before
- * `isReady` becomes `true`. Pass the returned handlers as the `onReady`
- * prop on each view:
+ * Both views must fire `onCameraReady` before `isReady` becomes `true`.
  *
  * ```tsx
- * const { isReady, onFrontReady, onBackReady } = useIsDualCameraReady();
+ * const {
+ *   isReady,
+ *   onFrontCameraReady,
+ *   onBackCameraReady,
+ *   onFrontMountError,
+ *   onBackMountError,
+ * } = useIsDualCameraReady();
  *
- * <DualCameraFront onReady={onFrontReady} style={styles.front} />
- * <DualCameraBack  onReady={onBackReady}  style={styles.back} />
+ * <DualCameraFrontView
+ *   onCameraReady={onFrontCameraReady}
+ *   onMountError={onFrontMountError}
+ *   style={styles.front}
+ * />
+ * <DualCameraBackView
+ *   onCameraReady={onBackCameraReady}
+ *   onMountError={onBackMountError}
+ *   style={styles.back}
+ * />
  *
- * <Button disabled={!isReady} title="Switch lens" onPress={switchLens} />
+ * <Button disabled={!isReady} title="Take Photo" onPress={snap} />
  * ```
  */
 export function useIsDualCameraReady() {
@@ -27,33 +40,33 @@ export function useIsDualCameraReady() {
     }
   };
 
-  const onFrontReady = useCallback(() => {
+  const onFrontCameraReady = useCallback(() => {
     readyRef.current.front = true;
     check();
   }, []);
 
-  const onBackReady = useCallback(() => {
+  const onBackCameraReady = useCallback(() => {
     readyRef.current.back = true;
     check();
   }, []);
 
-  const onFrontError = useCallback(
-    (e: { nativeEvent: { message: string } }) => {
+  const onFrontMountError = useCallback(
+    (e: { nativeEvent: CameraMountError }) => {
       setError(e.nativeEvent.message);
       setIsReady(false);
     },
     []
   );
 
-  const onBackError = useCallback(
-    (e: { nativeEvent: { message: string } }) => {
+  const onBackMountError = useCallback(
+    (e: { nativeEvent: CameraMountError }) => {
       setError(e.nativeEvent.message);
       setIsReady(false);
     },
     []
   );
 
-  /** Call this when tearing down / switching modes to reset the state. */
+  /** Reset state when tearing down or switching modes. */
   const reset = useCallback(() => {
     readyRef.current = { front: false, back: false };
     setIsReady(false);
@@ -63,10 +76,10 @@ export function useIsDualCameraReady() {
   return {
     isReady,
     error,
-    onFrontReady,
-    onBackReady,
-    onFrontError,
-    onBackError,
+    onFrontCameraReady,
+    onBackCameraReady,
+    onFrontMountError,
+    onBackMountError,
     reset,
   } as const;
 }

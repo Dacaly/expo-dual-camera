@@ -15,8 +15,8 @@ class DualCameraView(context: Context) : FrameLayout(context) {
     private val errorView: TextView
     private var side: String = "back"
 
-    val onReady by EventDispatcher()
-    val onError by EventDispatcher()
+    val onCameraReady by EventDispatcher()
+    val onMountError by EventDispatcher()
 
     init {
         previewView = PreviewView(context).apply {
@@ -25,7 +25,6 @@ class DualCameraView(context: Context) : FrameLayout(context) {
             scaleType = PreviewView.ScaleType.FILL_CENTER
             visibility = View.GONE
         }
-
         errorView = TextView(context).apply {
             setTextColor(Color.WHITE)
             setBackgroundColor(Color.BLACK)
@@ -33,26 +32,45 @@ class DualCameraView(context: Context) : FrameLayout(context) {
             visibility = View.GONE
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         }
-
         addView(previewView)
         addView(errorView)
     }
 
+    // MARK: - Prop setters
+
     fun setSide(newSide: String) {
         if (newSide == side) return
         val wasAttached = isAttachedToWindow
-        if (wasAttached) {
-            DualCameraSessionManager.unregister(this)
-        }
+        if (wasAttached) DualCameraSessionManager.unregister(this)
         side = newSide
-        if (wasAttached) {
-            DualCameraSessionManager.register(this, side, context)
-        }
+        if (wasAttached) DualCameraSessionManager.register(this, side, context)
     }
 
     fun setLens(lens: String) {
         DualCameraSessionManager.setBackLens(lens, context)
     }
+
+    fun setZoom(zoom: Double) {
+        DualCameraSessionManager.setZoom(side, zoom.toFloat())
+    }
+
+    fun setEnableTorch(enabled: Boolean) {
+        DualCameraSessionManager.setTorch(enabled)
+    }
+
+    fun setFlash(mode: String) {
+        DualCameraSessionManager.setFlash(mode)
+    }
+
+    fun setMirror(mirror: Boolean) {
+        previewView.scaleX = if (mirror) -1f else 1f
+    }
+
+    fun setAutofocus(mode: String) {
+        DualCameraSessionManager.setAutofocus(side, mode)
+    }
+
+    // MARK: - Preview
 
     fun getPreviewView(): PreviewView = previewView
 
@@ -65,12 +83,14 @@ class DualCameraView(context: Context) : FrameLayout(context) {
         errorView.text = message
         errorView.visibility = View.VISIBLE
         previewView.visibility = View.GONE
-        onError(mapOf("message" to message))
+        onMountError(mapOf("message" to message))
     }
 
     fun sessionDidStart() {
-        onReady(mapOf<String, Any>())
+        onCameraReady(mapOf<String, Any>())
     }
+
+    // MARK: - Lifecycle
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()

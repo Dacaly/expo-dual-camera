@@ -12,8 +12,8 @@ public class DualCameraView: ExpoView {
 
     // MARK: - Events
 
-    let onReady = EventDispatcher()
-    let onError = EventDispatcher()
+    let onCameraReady = EventDispatcher()
+    let onMountError = EventDispatcher()
 
     // MARK: - Initialization
 
@@ -49,17 +49,37 @@ public class DualCameraView: ExpoView {
     func setSide(_ newSide: String) {
         guard newSide != side else { return }
         let wasAttached = window != nil
-        if wasAttached {
-            DualCameraSessionManager.shared.unregister(self)
-        }
+        if wasAttached { DualCameraSessionManager.shared.unregister(self) }
         side = newSide
-        if wasAttached {
-            DualCameraSessionManager.shared.register(self, side: side)
-        }
+        if wasAttached { DualCameraSessionManager.shared.register(self, side: side) }
     }
 
     func setLens(_ lens: String) {
         DualCameraSessionManager.shared.setBackLens(lens)
+    }
+
+    func setZoom(_ zoom: Double) {
+        DualCameraSessionManager.shared.setZoom(side: side, normalizedZoom: zoom)
+    }
+
+    func setEnableTorch(_ enabled: Bool) {
+        DualCameraSessionManager.shared.setTorch(enabled)
+    }
+
+    func setFlash(_ mode: String) {
+        DualCameraSessionManager.shared.setFlash(mode)
+    }
+
+    func setMirror(_ mirror: Bool) {
+        guard let connection = previewLayer?.connection else { return }
+        if connection.isVideoMirroringSupported {
+            connection.automaticallyAdjustsVideoMirroring = false
+            connection.isVideoMirrored = mirror
+        }
+    }
+
+    func setAutofocus(_ mode: String) {
+        DualCameraSessionManager.shared.setAutofocus(side: side, mode: mode)
     }
 
     // MARK: - Preview Management
@@ -95,13 +115,13 @@ public class DualCameraView: ExpoView {
         errorLabel?.frame = bounds
         errorLabel?.isHidden = false
 
-        onError(["message": message])
+        onMountError(["message": message])
     }
 
     // MARK: - Session Callbacks
 
     func sessionDidStart() {
-        onReady([:])
+        onCameraReady([:])
     }
 
     // MARK: - Cleanup

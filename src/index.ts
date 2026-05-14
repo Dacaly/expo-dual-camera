@@ -1,7 +1,23 @@
-import ExpoDualCameraModule from "./ExpoDualCameraModule";
+import { createPermissionHook } from "expo-modules-core";
+import type { PermissionResponse } from "expo-modules-core";
 
-export { DualCameraFront, DualCameraBack } from "./DualCameraView";
-export type { DualCameraFrontProps, DualCameraBackProps } from "./ExpoDualCamera.types";
+import ExpoDualCameraModule from "./ExpoDualCameraModule";
+import type {
+  DualCameraCapturedPicture,
+  DualCameraPictureOptions,
+} from "./ExpoDualCamera.types";
+
+export { DualCameraFrontView, DualCameraBackView } from "./DualCameraView";
+export type {
+  DualCameraFrontViewProps,
+  DualCameraBackViewProps,
+  DualCameraCapturedPicture,
+  DualCameraPictureOptions,
+  FlashMode,
+  FocusMode,
+  CameraMountError,
+  PermissionResponse,
+} from "./ExpoDualCamera.types";
 export { useIsDualCameraReady } from "./useIsDualCameraReady";
 
 /** Check if the device supports simultaneous front + back cameras. */
@@ -9,46 +25,46 @@ export async function isSupported(): Promise<boolean> {
   return await ExpoDualCameraModule.isSupported();
 }
 
-/** Check if camera permission has been granted. */
-export async function checkCameraPermission(): Promise<boolean> {
-  return await ExpoDualCameraModule.checkCameraPermission();
+/** Checks user's permissions for accessing camera. */
+export async function getCameraPermissionsAsync(): Promise<PermissionResponse> {
+  return await ExpoDualCameraModule.getCameraPermissionsAsync();
 }
 
-/** Request camera permission. Returns `true` if granted. */
-export async function requestCameraPermission(): Promise<boolean> {
-  return await ExpoDualCameraModule.requestCameraPermission();
+/** Asks the user to grant permissions for accessing camera. */
+export async function requestCameraPermissionsAsync(): Promise<PermissionResponse> {
+  return await ExpoDualCameraModule.requestCameraPermissionsAsync();
 }
+
+/**
+ * Check or request permissions to access the camera.
+ *
+ * @example
+ * ```ts
+ * const [status, requestPermission] = useCameraPermissions();
+ * ```
+ */
+export const useCameraPermissions = createPermissionHook({
+  getMethod: getCameraPermissionsAsync,
+  requestMethod: requestCameraPermissionsAsync,
+});
 
 /**
  * Capture a photo from the specified camera.
- * @returns A file URI pointing to a temporary JPEG.
+ * @returns An object containing the file `uri`, `width`, and `height`.
  */
-export async function capturePhoto(
-  side: "front" | "back"
-): Promise<string> {
-  return await ExpoDualCameraModule.capturePhoto(side);
+export async function takePictureAsync(
+  side: "front" | "back",
+  options?: DualCameraPictureOptions
+): Promise<DualCameraCapturedPicture> {
+  return await ExpoDualCameraModule.takePictureAsync(side, options);
 }
 
 /** Pause the camera session without tearing it down. */
-export function pause(): void {
-  ExpoDualCameraModule.pause();
+export function pausePreview(): void {
+  ExpoDualCameraModule.pausePreview();
 }
 
-/** Resume a paused camera session. Fires `onReady` again on both views. */
-export function resume(): void {
-  ExpoDualCameraModule.resume();
-}
-
-/** Enable or disable the torch (back camera only). */
-export function setTorch(enabled: boolean): void {
-  ExpoDualCameraModule.setTorch(enabled);
-}
-
-/**
- * Set the zoom factor for a camera.
- * @param side  Which camera to zoom.
- * @param factor  Zoom multiplier (1.0 = no zoom). Clamped to device limits.
- */
-export function setZoom(side: "front" | "back", factor: number): void {
-  ExpoDualCameraModule.setZoom(side, factor);
+/** Resume a paused camera session. Fires `onCameraReady` again on both views. */
+export function resumePreview(): void {
+  ExpoDualCameraModule.resumePreview();
 }

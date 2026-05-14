@@ -1,9 +1,12 @@
 package expo.modules.dualcamera
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Base64
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
@@ -11,6 +14,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import java.io.File
+import java.io.FileOutputStream
 import java.lang.ref.WeakReference
 import java.util.UUID
 
@@ -26,11 +30,12 @@ object DualCameraSessionManager {
     private var backImageCapture: ImageCapture? = null
 
     private var currentBackLens: String = "wide"
+    private var currentFlashMode: Int = ImageCapture.FLASH_MODE_OFF
+
     var isRunning = false
         private set
     private var isPaused = false
 
-    // Store use cases and selectors for pause/resume
     private var lastContext: WeakReference<Context>? = null
 
     fun register(view: DualCameraView, side: String, context: Context) {
@@ -65,6 +70,49 @@ object DualCameraSessionManager {
         }
     }
 
+    // MARK: - Props forwarded from views
+
+    fun setZoom(side: String, normalizedZoom: Float) {
+        val camera = if (side == "front") frontCamera else backCamera
+        camera ?: return
+        val zoomState = camera.cameraInfo.zoomState.value ?: return
+        val minZoom = zoomState.minZoomRatio
+        val maxZoom = zoomState.maxZoomRatio
+        val ratio = minZoom + normalizedZoom * (maxZoom - minZoom)
+        camera.cameraControl.setZoomRatio(ratio.coerceIn(minZoom, maxZoom))
+    }
+
+    fun setTorch(enabled: Boolean) {
+        val camera = backCamera ?: return
+        if (camera.cameraInfo.hasFlashUnit()) {
+            camera.cameraControl.enableTorch(enabled)
+        }
+    }
+
+    fun setFlash(mode: String) {
+        currentFlashMode = when (mode) {
+            "on" -> ImageCapture.FLASH_MODE_ON
+            "auto" -> ImageCapture.FLASH_MODE_AUTO
+            else -> ImageCapture.FLASH_MODE_OFF
+        }
+    }
+
+    fun setAutofocus(side: String, mode: String) {
+        val camera = if (side == "front") frontCamera else backCamera
+        camera ?: return
+        if (mode == "on") {
+            // Focus once at center and lock
+            val factory = camera.cameraInfo.zoomState.value?.let { null } // no-op for now
+            // CameraX defaults to continuous autofocus; explicit lock requires FocusMeteringAction
+            // which needs a MeteringPointFactory from the PreviewView. For simplicity, we leave
+            // CameraX's default continuous autofocus active. Full tap-to-focus can be added later
+            // by passing the PreviewView's MeteringPointFactory through.
+        }
+        // mode == "off" → CameraX default continuous autofocus (no action needed)
+    }
+
+    // MARK: - Session Lifecycle
+
     private fun startIfReady(context: Context) {
         val front = frontView?.get() ?: return
         val back = backView?.get() ?: return
@@ -74,13 +122,11 @@ object DualCameraSessionManager {
         try {
             provider.unbindAll()
 
-            // Preview use cases
             val backPreviewUseCase = Preview.Builder().build()
                 .also { it.surfaceProvider = back.getPreviewView().surfaceProvider }
             val frontPreviewUseCase = Preview.Builder().build()
                 .also { it.surfaceProvider = front.getPreviewView().surfaceProvider }
 
-            // Image capture use cases
             val backCapture = ImageCapture.Builder()
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                 .build()
@@ -145,13 +191,13 @@ object DualCameraSessionManager {
 
     // MARK: - Pause / Resume
 
-    fun pause() {
+    fun pausePreview() {
         if (!isRunning || isPaused) return
         isPaused = true
         cameraProvider?.unbindAll()
     }
 
-    fun resume() {
+    fun resumePreview() {
         if (!isPaused) return
         isPaused = false
         val context = lastContext?.get() ?: return
@@ -160,7 +206,12 @@ object DualCameraSessionManager {
 
     // MARK: - Photo Capture
 
-    fun capturePhoto(side: String, context: Context, callback: (Result<String>) -> Unit) {
+    fun takePicture(
+        side: String,
+        options: Map<String, Any>?,
+        context: Context,
+        callback: (Result<Map<String, Any>>) -> Unit
+    ) {
         if (!isRunning || isPaused) {
             callback(Result.failure(Exception("Camera session is not running")))
             return
@@ -172,6 +223,14 @@ object DualCameraSessionManager {
             return
         }
 
+        // Apply flash mode to back camera
+        if (side == "back") {
+            imageCapture.flashMode = currentFlashMode
+        }
+
+        val quality = (options?.get("quality") as? Double) ?: 1.0
+        val wantBase64 = (options?.get("base64") as? Boolean) ?: false
+
         val file = File(context.cacheDir, "${UUID.randomUUID()}.jpg")
         val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
 
@@ -180,33 +239,41 @@ object DualCameraSessionManager {
             ContextCompat.getMainExecutor(context),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    callback(Result.success(Uri.fromFile(file).toString()))
+                    // Re-compress if quality < 1.0
+                    if (quality < 1.0) {
+                        try {
+                            val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                            FileOutputStream(file).use { out ->
+                                bitmap.compress(
+                                    android.graphics.Bitmap.CompressFormat.JPEG,
+                                    (quality * 100).toInt(),
+                                    out
+                                )
+                            }
+                            bitmap.recycle()
+                        } catch (_: Exception) {}
+                    }
+
+                    val dims = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeFile(file.absolutePath, dims)
+
+                    val result = mutableMapOf<String, Any>(
+                        "uri" to Uri.fromFile(file).toString(),
+                        "width" to dims.outWidth,
+                        "height" to dims.outHeight
+                    )
+
+                    if (wantBase64) {
+                        result["base64"] = Base64.encodeToString(file.readBytes(), Base64.NO_WRAP)
+                    }
+
+                    callback(Result.success(result))
                 }
+
                 override fun onError(exception: ImageCaptureException) {
                     callback(Result.failure(exception))
                 }
             }
         )
-    }
-
-    // MARK: - Torch
-
-    fun setTorch(enabled: Boolean) {
-        val camera = backCamera ?: throw Exception("Back camera not available")
-        if (!camera.cameraInfo.hasFlashUnit()) {
-            throw Exception("Torch is not available on this device")
-        }
-        camera.cameraControl.enableTorch(enabled)
-    }
-
-    // MARK: - Zoom
-
-    fun setZoom(side: String, factor: Float) {
-        val camera = if (side == "front") frontCamera else backCamera
-        camera ?: return
-
-        val zoomState = camera.cameraInfo.zoomState.value ?: return
-        val clamped = factor.coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
-        camera.cameraControl.setZoomRatio(clamped)
     }
 }

@@ -13,23 +13,28 @@ public class ExpoDualCameraModule: Module {
 
     // MARK: - Permissions
 
-    AsyncFunction("checkCameraPermission") { () -> Bool in
-      AVCaptureDevice.authorizationStatus(for: .video) == .authorized
+    AsyncFunction("getCameraPermissionsAsync") { () -> [String: Any] in
+      DualCameraSessionManager.permissionResponse()
     }
 
-    AsyncFunction("requestCameraPermission") { (promise: Promise) in
-      AVCaptureDevice.requestAccess(for: .video) { granted in
-        promise.resolve(granted)
+    AsyncFunction("requestCameraPermissionsAsync") { (promise: Promise) in
+      if AVCaptureDevice.authorizationStatus(for: .video) == .authorized {
+        promise.resolve(DualCameraSessionManager.permissionResponse())
+        return
+      }
+      AVCaptureDevice.requestAccess(for: .video) { _ in
+        promise.resolve(DualCameraSessionManager.permissionResponse())
       }
     }
 
     // MARK: - Photo Capture
 
-    AsyncFunction("capturePhoto") { (side: String, promise: Promise) in
-      DualCameraSessionManager.shared.capturePhoto(side: side) { result in
+    AsyncFunction("takePictureAsync") { (side: String, options: [String: Any]?, promise: Promise) in
+      let opts = CaptureOptions(from: options)
+      DualCameraSessionManager.shared.takePicture(side: side, options: opts) { result in
         switch result {
-        case .success(let uri):
-          promise.resolve(uri)
+        case .success(let data):
+          promise.resolve(data)
         case .failure(let error):
           promise.reject("E_CAPTURE", error.localizedDescription)
         }
@@ -38,36 +43,39 @@ public class ExpoDualCameraModule: Module {
 
     // MARK: - Session Control
 
-    Function("pause") {
-      DualCameraSessionManager.shared.pause()
+    Function("pausePreview") {
+      DualCameraSessionManager.shared.pausePreview()
     }
 
-    Function("resume") {
-      DualCameraSessionManager.shared.resume()
-    }
-
-    // MARK: - Torch
-
-    Function("setTorch") { (enabled: Bool) in
-      try DualCameraSessionManager.shared.setTorch(enabled)
-    }
-
-    // MARK: - Zoom
-
-    Function("setZoom") { (side: String, factor: Double) in
-      DualCameraSessionManager.shared.setZoom(side: side, factor: factor)
+    Function("resumePreview") {
+      DualCameraSessionManager.shared.resumePreview()
     }
 
     // MARK: - View
 
     View(DualCameraView.self) {
-      Events("onReady", "onError")
+      Events("onCameraReady", "onMountError")
 
       Prop("side") { (view: DualCameraView, side: String) in
         view.setSide(side)
       }
       Prop("lens") { (view: DualCameraView, lens: String) in
         view.setLens(lens)
+      }
+      Prop("zoom") { (view: DualCameraView, zoom: Double) in
+        view.setZoom(zoom)
+      }
+      Prop("enableTorch") { (view: DualCameraView, enabled: Bool) in
+        view.setEnableTorch(enabled)
+      }
+      Prop("flash") { (view: DualCameraView, mode: String) in
+        view.setFlash(mode)
+      }
+      Prop("mirror") { (view: DualCameraView, mirror: Bool) in
+        view.setMirror(mirror)
+      }
+      Prop("autofocus") { (view: DualCameraView, mode: String) in
+        view.setAutofocus(mode)
       }
     }
   }

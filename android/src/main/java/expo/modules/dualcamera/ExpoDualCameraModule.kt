@@ -18,9 +18,9 @@ class ExpoDualCameraModule : Module() {
       val context = appContext.reactContext ?: run {
         promise.resolve(false); return@AsyncFunction
       }
-      val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-      cameraProviderFuture.addListener({
-        val provider = cameraProviderFuture.get()
+      val future = ProcessCameraProvider.getInstance(context)
+      future.addListener({
+        val provider = future.get()
         val supported = provider.availableConcurrentCameraInfos.isNotEmpty()
         promise.resolve(supported)
       }, ContextCompat.getMainExecutor(context))
@@ -28,42 +28,49 @@ class ExpoDualCameraModule : Module() {
 
     // MARK: - Permissions
 
-    AsyncFunction("checkCameraPermission") { promise: Promise ->
-      val activity = appContext.activity ?: run {
-        promise.reject("E_ACTIVITY", "Activity not found"); return@AsyncFunction
+    AsyncFunction("getCameraPermissionsAsync") { promise: Promise ->
+      val context = appContext.reactContext ?: run {
+        promise.reject("E_CONTEXT", "Context not available", null); return@AsyncFunction
       }
-      val hasPermission = ContextCompat.checkSelfPermission(
-        activity, Manifest.permission.CAMERA
+      val granted = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.CAMERA
       ) == PackageManager.PERMISSION_GRANTED
-      promise.resolve(hasPermission)
+      promise.resolve(permissionResponse(granted, canAskAgain = true))
     }
 
-    AsyncFunction("requestCameraPermission") { promise: Promise ->
-      val activity = appContext.activity ?: run {
-        promise.reject("E_ACTIVITY", "Activity not found"); return@AsyncFunction
+    AsyncFunction("requestCameraPermissionsAsync") { promise: Promise ->
+      val context = appContext.reactContext ?: run {
+        promise.reject("E_CONTEXT", "Context not available", null); return@AsyncFunction
       }
-      val hasPermission = ContextCompat.checkSelfPermission(
-        activity, Manifest.permission.CAMERA
+      val alreadyGranted = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.CAMERA
       ) == PackageManager.PERMISSION_GRANTED
-      if (hasPermission) {
-        promise.resolve(true); return@AsyncFunction
+
+      if (alreadyGranted) {
+        promise.resolve(permissionResponse(true, canAskAgain = true))
+        return@AsyncFunction
       }
-      val PERMISSION_REQUEST_CODE = 1001
-      activity.requestPermissions(
-        arrayOf(Manifest.permission.CAMERA), PERMISSION_REQUEST_CODE
-      ) { result ->
-        promise.resolve(result.isGranted)
+
+      val permissions = appContext.permissions
+      if (permissions == null) {
+        promise.reject("E_PERMISSIONS", "Permissions module not available", null)
+        return@AsyncFunction
       }
+
+      permissions.askForPermissionsWithPermissionsManager(
+        promise,
+        Manifest.permission.CAMERA
+      )
     }
 
     // MARK: - Photo Capture
 
-    AsyncFunction("capturePhoto") { side: String, promise: Promise ->
+    AsyncFunction("takePictureAsync") { side: String, options: Map<String, Any>?, promise: Promise ->
       val context = appContext.reactContext ?: run {
-        promise.reject("E_CONTEXT", "Context not available"); return@AsyncFunction
+        promise.reject("E_CONTEXT", "Context not available", null); return@AsyncFunction
       }
-      DualCameraSessionManager.capturePhoto(side, context) { result ->
-        result.onSuccess { uri -> promise.resolve(uri) }
+      DualCameraSessionManager.takePicture(side, options, context) { result ->
+        result.onSuccess { data -> promise.resolve(data) }
         result.onFailure { error ->
           promise.reject("E_CAPTURE", error.message ?: "Capture failed", error)
         }
@@ -72,30 +79,18 @@ class ExpoDualCameraModule : Module() {
 
     // MARK: - Session Control
 
-    Function("pause") {
-      DualCameraSessionManager.pause()
+    Function("pausePreview") {
+      DualCameraSessionManager.pausePreview()
     }
 
-    Function("resume") {
-      DualCameraSessionManager.resume()
-    }
-
-    // MARK: - Torch
-
-    Function("setTorch") { enabled: Boolean ->
-      DualCameraSessionManager.setTorch(enabled)
-    }
-
-    // MARK: - Zoom
-
-    Function("setZoom") { side: String, factor: Double ->
-      DualCameraSessionManager.setZoom(side, factor.toFloat())
+    Function("resumePreview") {
+      DualCameraSessionManager.resumePreview()
     }
 
     // MARK: - View
 
     View(DualCameraView::class) {
-      Events("onReady", "onError")
+      Events("onCameraReady", "onMountError")
 
       Prop("side") { view: DualCameraView, side: String ->
         view.setSide(side)
@@ -103,6 +98,30 @@ class ExpoDualCameraModule : Module() {
       Prop("lens") { view: DualCameraView, lens: String ->
         view.setLens(lens)
       }
+      Prop("zoom") { view: DualCameraView, zoom: Double ->
+        view.setZoom(zoom)
+      }
+      Prop("enableTorch") { view: DualCameraView, enabled: Boolean ->
+        view.setEnableTorch(enabled)
+      }
+      Prop("flash") { view: DualCameraView, mode: String ->
+        view.setFlash(mode)
+      }
+      Prop("mirror") { view: DualCameraView, mirror: Boolean ->
+        view.setMirror(mirror)
+      }
+      Prop("autofocus") { view: DualCameraView, mode: String ->
+        view.setAutofocus(mode)
+      }
     }
+  }
+
+  private fun permissionResponse(granted: Boolean, canAskAgain: Boolean): Map<String, Any> {
+    return mapOf(
+      "status" to if (granted) "granted" else "denied",
+      "granted" to granted,
+      "canAskAgain" to canAskAgain,
+      "expires" to "never"
+    )
   }
 }
