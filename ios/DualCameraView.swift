@@ -31,6 +31,15 @@ public class DualCameraView: ExpoView {
 
     public override func didMoveToWindow() {
         super.didMoveToWindow()
+        NSObject.cancelPreviousPerformRequests(
+            withTarget: self,
+            selector: #selector(handleWindowChange),
+            object: nil
+        )
+        perform(#selector(handleWindowChange), with: nil, afterDelay: 0)
+    }
+
+    @objc private func handleWindowChange() {
         if window != nil {
             DualCameraSessionManager.shared.register(self, side: side)
         } else {
@@ -127,6 +136,7 @@ public class DualCameraView: ExpoView {
     // MARK: - Cleanup
 
     deinit {
+        NSObject.cancelPreviousPerformRequests(withTarget: self)
         DualCameraSessionManager.shared.unregister(self)
     }
 }

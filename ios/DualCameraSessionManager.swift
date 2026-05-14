@@ -337,14 +337,14 @@ class DualCameraSessionManager {
     }
 
     private func stop() {
+        isRunning = false
+        isPaused = false
         activePhotoDelegates.removeAll()
 
         sessionQueue.async { [weak self] in
             self?.session?.stopRunning()
 
             DispatchQueue.main.async {
-                self?.isRunning = false
-                self?.isPaused = false
                 self?.frontView?.detachPreview()
                 self?.backView?.detachPreview()
                 self?.session = nil
