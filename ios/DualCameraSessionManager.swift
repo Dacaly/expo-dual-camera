@@ -298,7 +298,7 @@ class DualCameraSessionManager {
 
             session.commitConfiguration()
 
-            // --- Preview layers ---
+            // --- Preview layers (must be on main thread for UIKit) ---
             DispatchQueue.main.async {
                 let frontPreview = AVCaptureVideoPreviewLayer()
                 frontPreview.setSessionWithNoConnection(session)
@@ -318,19 +318,22 @@ class DualCameraSessionManager {
                 self.backDevice = backDev
                 self.frontPhotoOutput = frontPhoto
                 self.backPhotoOutput = backPhoto
-            }
 
-            session.startRunning()
+                // Start the session AFTER preview connections are wired up
+                self.sessionQueue.async {
+                    session.startRunning()
 
-            DispatchQueue.main.async {
-                if session.isRunning {
-                    self.isRunning = true
-                    self.isPaused = false
-                    capturedFrontView.sessionDidStart()
-                    capturedBackView.sessionDidStart()
-                } else {
-                    capturedFrontView.showError("Failed to start camera session")
-                    capturedBackView.showError("Failed to start camera session")
+                    DispatchQueue.main.async {
+                        if session.isRunning {
+                            self.isRunning = true
+                            self.isPaused = false
+                            capturedFrontView.sessionDidStart()
+                            capturedBackView.sessionDidStart()
+                        } else {
+                            capturedFrontView.showError("Failed to start camera session")
+                            capturedBackView.showError("Failed to start camera session")
+                        }
+                    }
                 }
             }
         }

@@ -114,6 +114,7 @@ object DualCameraSessionManager {
     // MARK: - Session Lifecycle
 
     private fun startIfReady(context: Context) {
+        if (isRunning) return
         val front = frontView?.get() ?: return
         val back = backView?.get() ?: return
         val provider = cameraProvider ?: return
