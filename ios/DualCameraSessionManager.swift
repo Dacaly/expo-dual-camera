@@ -423,6 +423,13 @@ class DualCameraSessionManager {
             settings.flashMode = flashMode
         }
 
+        // Set video orientation for the photo connection
+        if let connection = photoOutput.connection(with: .photo) {
+            if connection.isVideoOrientationSupported {
+                connection.videoOrientation = .portrait
+            }
+        }
+
         sessionQueue.async {
             photoOutput.capturePhoto(with: settings, delegate: delegate)
         }
