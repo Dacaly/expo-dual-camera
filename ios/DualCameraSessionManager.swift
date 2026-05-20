@@ -95,6 +95,7 @@ class DualCameraSessionManager {
     private var session: AVCaptureMultiCamSession?
     private(set) var isRunning = false
     private var isPaused = false
+    private var isStopping = false
     private var backLens: String = "wide"
 
     // Devices
@@ -140,7 +141,9 @@ class DualCameraSessionManager {
     func unregister(_ view: DualCameraView) {
         if view === frontView { frontView = nil }
         if view === backView { backView = nil }
-        stop()
+        if !isStopping {
+            stop()
+        }
     }
 
     func setBackLens(_ lens: String) {
@@ -213,6 +216,9 @@ class DualCameraSessionManager {
     private func startIfReady() {
         guard let frontView = frontView, let backView = backView else { return }
         guard !isRunning else { return }
+
+        // Don't restart while we're stopping the session
+        if isStopping { return }
 
         guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else {
             AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
@@ -340,6 +346,8 @@ class DualCameraSessionManager {
     }
 
     private func stop() {
+        guard !isStopping else { return }
+        isStopping = true
         isRunning = false
         isPaused = false
         activePhotoDelegates.removeAll()
@@ -348,6 +356,7 @@ class DualCameraSessionManager {
             self?.session?.stopRunning()
 
             DispatchQueue.main.async {
+                self?.isStopping = false
                 self?.frontView?.detachPreview()
                 self?.backView?.detachPreview()
                 self?.session = nil
