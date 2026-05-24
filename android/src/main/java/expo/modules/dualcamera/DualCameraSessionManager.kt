@@ -208,7 +208,6 @@ object DualCameraSessionManager {
     // MARK: - Photo Capture
 
     fun takePicture(
-        side: String,
         options: Map<String, Any>?,
         context: Context,
         callback: (Result<Map<String, Any>>) -> Unit
@@ -218,63 +217,137 @@ object DualCameraSessionManager {
             return
         }
 
-        val imageCapture = if (side == "front") frontImageCapture else backImageCapture
-        if (imageCapture == null) {
+        val frontCapture = frontImageCapture
+        val backCapture = backImageCapture
+        if (frontCapture == null || backCapture == null) {
             callback(Result.failure(Exception("Photo capture not available")))
             return
-        }
-
-        // Apply flash mode to back camera
-        if (side == "back") {
-            imageCapture.flashMode = currentFlashMode
         }
 
         val quality = (options?.get("quality") as? Double) ?: 1.0
         val wantBase64 = (options?.get("base64") as? Boolean) ?: false
 
-        val file = File(context.cacheDir, "${UUID.randomUUID()}.jpg")
-        val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
+        val frontFile = File(context.cacheDir, "${UUID.randomUUID()}.jpg")
+        val backFile = File(context.cacheDir, "${UUID.randomUUID()}.jpg")
 
-        imageCapture.takePicture(
-            outputOptions,
-            ContextCompat.getMainExecutor(context),
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    // Re-compress if quality < 1.0
-                    if (quality < 1.0) {
-                        try {
-                            val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-                            FileOutputStream(file).use { out ->
-                                bitmap.compress(
-                                    android.graphics.Bitmap.CompressFormat.JPEG,
-                                    (quality * 100).toInt(),
-                                    out
-                                )
-                            }
-                            bitmap.recycle()
-                        } catch (_: Exception) {}
+        var frontCompleted = false
+        var backCompleted = false
+        var frontResult: MutableMap<String, Any>? = null
+        var backResult: MutableMap<String, Any>? = null
+        val lock = Any()
+        var finalError: Exception? = null
+
+        fun checkComplete() {
+            synchronized(lock) {
+                if (frontCompleted && backCompleted) {
+                    val combined = mutableMapOf<String, Any>()
+                    frontResult?.let {
+                        combined["frontUri"] = it["uri"]
+                        combined["frontWidth"] = it["width"]
+                        combined["frontHeight"] = it["height"]
+                        if (wantBase64) combined["frontBase64"] = it["base64"]
                     }
-
-                    val dims = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeFile(file.absolutePath, dims)
-
-                    val result = mutableMapOf<String, Any>(
-                        "uri" to Uri.fromFile(file).toString(),
-                        "width" to dims.outWidth,
-                        "height" to dims.outHeight
-                    )
-
-                    if (wantBase64) {
-                        result["base64"] = Base64.encodeToString(file.readBytes(), Base64.NO_WRAP)
+                    backResult?.let {
+                        combined["backUri"] = it["uri"]
+                        combined["backWidth"] = it["width"]
+                        combined["backHeight"] = it["height"]
+                        if (wantBase64) combined["backBase64"] = it["base64"]
                     }
-
-                    callback(Result.success(result))
-                }
-
-                override fun onError(exception: ImageCaptureException) {
-                    callback(Result.failure(exception))
+                    if (combined.isEmpty() && finalError != null) {
+                        callback(Result.failure(finalError!!))
+                    } else {
+                        callback(Result.success(combined))
+                    }
                 }
             }
-        )
+        }
+
+        // Apply flash mode to back camera
+        backCapture.flashMode = currentFlashMode
+
+        val frontCallback = object : ImageCapture.OnImageSavedCallback {
+            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                var file = frontFile
+                if (quality < 1.0) {
+                    try {
+                        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                        FileOutputStream(file).use { out ->
+                            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, (quality * 100).toInt(), out)
+                        }
+                        bitmap.recycle()
+                    } catch (_: Exception) {}
+                }
+
+                val dims = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(file.absolutePath, dims)
+
+                val result = mutableMapOf<String, Any>(
+                    "uri" to Uri.fromFile(file).toString(),
+                    "width" to dims.outWidth,
+                    "height" to dims.outHeight
+                )
+                if (wantBase64) {
+                    result["base64"] = Base64.encodeToString(file.readBytes(), Base64.NO_WRAP)
+                }
+
+                synchronized(lock) {
+                    frontResult = result
+                    frontCompleted = true
+                }
+                checkComplete()
+            }
+
+            override fun onError(exception: ImageCaptureException) {
+                synchronized(lock) {
+                    finalError = exception
+                    frontCompleted = true
+                }
+                checkComplete()
+            }
+        }
+
+        val backCallback = object : ImageCapture.OnImageSavedCallback {
+            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                var file = backFile
+                if (quality < 1.0) {
+                    try {
+                        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                        FileOutputStream(file).use { out ->
+                            bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, (quality * 100).toInt(), out)
+                        }
+                        bitmap.recycle()
+                    } catch (_: Exception) {}
+                }
+
+                val dims = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(file.absolutePath, dims)
+
+                val result = mutableMapOf<String, Any>(
+                    "uri" to Uri.fromFile(file).toString(),
+                    "width" to dims.outWidth,
+                    "height" to dims.outHeight
+                )
+                if (wantBase64) {
+                    result["base64"] = Base64.encodeToString(file.readBytes(), Base64.NO_WRAP)
+                }
+
+                synchronized(lock) {
+                    backResult = result
+                    backCompleted = true
+                }
+                checkComplete()
+            }
+
+            override fun onError(exception: ImageCaptureException) {
+                synchronized(lock) {
+                    finalError = exception
+                    backCompleted = true
+                }
+                checkComplete()
+            }
+        }
+
+        frontCapture.takePicture(ImageCapture.OutputFileOptions.Builder(frontFile).build(), ContextCompat.getMainExecutor(context), frontCallback)
+        backCapture.takePicture(ImageCapture.OutputFileOptions.Builder(backFile).build(), ContextCompat.getMainExecutor(context), backCallback)
     }
 }

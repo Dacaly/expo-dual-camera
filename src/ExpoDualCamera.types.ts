@@ -20,14 +20,22 @@ export type FocusMode = "on" | "off";
 export type CameraMountError = { message: string };
 
 export type DualCameraCapturedPicture = {
-  /** File URI pointing to the captured JPEG. */
-  uri: string;
-  /** Image width in pixels. */
-  width: number;
-  /** Image height in pixels. */
-  height: number;
-  /** Base64 representation of the image, if requested. */
-  base64?: string;
+  /** File URI pointing to the captured JPEG from the front camera. */
+  frontUri: string;
+  /** File URI pointing to the captured JPEG from the back camera. */
+  backUri: string;
+  /** Front image width in pixels. */
+  frontWidth: number;
+  /** Front image height in pixels. */
+  frontHeight: number;
+  /** Back image width in pixels. */
+  backWidth: number;
+  /** Back image height in pixels. */
+  backHeight: number;
+  /** Base64 representation of the front image, if requested. */
+  frontBase64?: string;
+  /** Base64 representation of the back image, if requested. */
+  backBase64?: string;
 };
 
 export type DualCameraPictureOptions = {

@@ -10,7 +10,6 @@ declare class ExpoDualCameraModule extends NativeModule {
   getCameraPermissionsAsync(): Promise<PermissionResponse>;
   requestCameraPermissionsAsync(): Promise<PermissionResponse>;
   takePictureAsync(
-    side: "front" | "back",
     options?: DualCameraPictureOptions
   ): Promise<DualCameraCapturedPicture>;
   pausePreview(): void;

@@ -29,9 +29,9 @@ public class ExpoDualCameraModule: Module {
 
     // MARK: - Photo Capture
 
-    AsyncFunction("takePictureAsync") { (side: String, options: [String: Any]?, promise: Promise) in
+    AsyncFunction("takePictureAsync") { (options: [String: Any]?, promise: Promise) in
       let opts = CaptureOptions(from: options)
-      DualCameraSessionManager.shared.takePicture(side: side, options: opts) { result in
+      DualCameraSessionManager.shared.takePicture(options: opts) { result in
         switch result {
         case .success(let data):
           promise.resolve(data)
@@ -41,6 +41,9 @@ public class ExpoDualCameraModule: Module {
       }
     }
 
+    // MARK: - Image Composite
+
+    
     // MARK: - Session Control
 
     Function("pausePreview") {

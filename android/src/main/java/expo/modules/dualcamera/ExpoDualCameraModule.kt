@@ -65,11 +65,11 @@ class ExpoDualCameraModule : Module() {
 
     // MARK: - Photo Capture
 
-    AsyncFunction("takePictureAsync") { side: String, options: Map<String, Any>?, promise: Promise ->
+    AsyncFunction("takePictureAsync") { options: Map<String, Any>?, promise: Promise ->
       val context = appContext.reactContext ?: run {
         promise.reject("E_CONTEXT", "Context not available", null); return@AsyncFunction
       }
-      DualCameraSessionManager.takePicture(side, options, context) { result ->
+      DualCameraSessionManager.takePicture(options, context) { result ->
         result.onSuccess { data -> promise.resolve(data) }
         result.onFailure { error ->
           promise.reject("E_CAPTURE", error.message ?: "Capture failed", error)

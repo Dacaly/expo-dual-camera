@@ -399,39 +399,98 @@ class DualCameraSessionManager {
 
     // MARK: - Photo Capture
 
-    func takePicture(side: String, options: CaptureOptions, completion: @escaping (Result<[String: Any], Error>) -> Void) {
+    func takePicture(options: CaptureOptions, completion: @escaping (Result<[String: Any], Error>) -> Void) {
         guard isRunning, !isPaused else {
             completion(.failure(DualCameraError.sessionNotRunning))
             return
         }
 
-        let output = (side == "front") ? frontPhotoOutput : backPhotoOutput
-        guard let photoOutput = output else {
+        guard let frontOutput = frontPhotoOutput, let backOutput = backPhotoOutput else {
             completion(.failure(DualCameraError.noPhotoOutput))
             return
         }
 
-        let delegateID = UUID()
-        let delegate = PhotoCaptureDelegate(options: options) { [weak self] result in
-            self?.activePhotoDelegates.removeValue(forKey: delegateID)
-            completion(result)
-        }
-        activePhotoDelegates[delegateID] = delegate
+        let frontDelegateID = UUID()
+        let backDelegateID = UUID()
 
-        let settings = AVCapturePhotoSettings()
-        if side == "back", photoOutput.supportedFlashModes.contains(flashMode) {
-            settings.flashMode = flashMode
+        var frontResult: [String: Any]?
+        var backResult: [String: Any]?
+        var hasCompleted = false
+        let lock = NSLock()
+
+        func checkAndComplete() {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !hasCompleted else { return }
+            if let f = frontResult, let b = backResult {
+                hasCompleted = true
+                var combined: [String: Any] = [
+                    "frontUri": f["uri"] as? String ?? "",
+                    "backUri": b["uri"] as? String ?? "",
+                    "frontWidth": f["width"] as? Int ?? 0,
+                    "frontHeight": f["height"] as? Int ?? 0,
+                    "backWidth": b["width"] as? Int ?? 0,
+                    "backHeight": b["height"] as? Int ?? 0,
+                ]
+                if options.base64, let fb = f["base64"] as? String, let bb = b["base64"] as? String {
+                    combined["frontBase64"] = fb
+                    combined["backBase64"] = bb
+                }
+                completion(.success(combined))
+            }
         }
 
-        // Set video orientation for the photo connection
-        if let connection = photoOutput.connection(with: .photo) {
-            if connection.isVideoOrientationSupported {
-                connection.videoOrientation = .portrait
+        let frontDelegate = PhotoCaptureDelegate(options: options) { [weak self] result in
+            self?.activePhotoDelegates.removeValue(forKey: frontDelegateID)
+            switch result {
+            case .success(let data):
+                self?.lock.lock()
+                frontResult = data
+                self?.lock.unlock()
+                checkAndComplete()
+            case .failure(let error):
+                self?.lock.lock()
+                if !hasCompleted {
+                    hasCompleted = true
+                }
+                self?.lock.unlock()
+                completion(.failure(error))
+            }
+        }
+
+        let backDelegate = PhotoCaptureDelegate(options: options) { [weak self] result in
+            self?.activePhotoDelegates.removeValue(forKey: backDelegateID)
+            switch result {
+            case .success(let data):
+                self?.lock.lock()
+                backResult = data
+                self?.lock.unlock()
+                checkAndComplete()
+            case .failure(let error):
+                self?.lock.lock()
+                if !hasCompleted {
+                    hasCompleted = true
+                }
+                self?.lock.unlock()
+                completion(.failure(error))
+            }
+        }
+
+        activePhotoDelegates[frontDelegateID] = frontDelegate
+        activePhotoDelegates[backDelegateID] = backDelegate
+
+        // Set video orientation for both photo connections
+        [frontOutput, backOutput].forEach { output in
+            if let connection = output.connection(with: .photo) {
+                if connection.isVideoOrientationSupported {
+                    connection.videoOrientation = .portrait
+                }
             }
         }
 
         sessionQueue.async {
-            photoOutput.capturePhoto(with: settings, delegate: delegate)
+            frontOutput.capturePhoto(with: AVCapturePhotoSettings(), delegate: frontDelegate)
+            backOutput.capturePhoto(with: AVCapturePhotoSettings(), delegate: backDelegate)
         }
     }
 }

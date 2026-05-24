@@ -49,14 +49,13 @@ export const useCameraPermissions = createPermissionHook({
 });
 
 /**
- * Capture a photo from the specified camera.
- * @returns An object containing the file `uri`, `width`, and `height`.
+ * Capture photos from both front and back cameras simultaneously.
+ * @returns An object containing `frontUri`, `backUri` and their dimensions.
  */
 export async function takePictureAsync(
-  side: "front" | "back",
   options?: DualCameraPictureOptions
 ): Promise<DualCameraCapturedPicture> {
-  return await ExpoDualCameraModule.takePictureAsync(side, options);
+  return await ExpoDualCameraModule.takePictureAsync(options);
 }
 
 /** Pause the camera session without tearing it down. */
