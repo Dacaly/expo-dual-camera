@@ -106,6 +106,10 @@ class DualCameraSessionManager {
     private var frontPhotoOutput: AVCapturePhotoOutput?
     private var backPhotoOutput: AVCapturePhotoOutput?
 
+    // Photo connections (for orientation)
+    private var frontPhotoConnection: AVCaptureConnection?
+    private var backPhotoConnection: AVCaptureConnection?
+
     // In-flight photo delegates
     private var activePhotoDelegates: [UUID: PhotoCaptureDelegate] = [:]
 
@@ -302,6 +306,10 @@ class DualCameraSessionManager {
             if session.canAddConnection(frontPhotoConn) { session.addConnection(frontPhotoConn) }
             if session.canAddConnection(backPhotoConn) { session.addConnection(backPhotoConn) }
 
+            // Store photo connections for later use
+            self.frontPhotoConnection = frontPhotoConn
+            self.backPhotoConnection = backPhotoConn
+
             session.commitConfiguration()
 
             // --- Preview layers (must be on main thread for UIKit) ---
@@ -364,6 +372,8 @@ class DualCameraSessionManager {
                 self?.backDevice = nil
                 self?.frontPhotoOutput = nil
                 self?.backPhotoOutput = nil
+                self?.frontPhotoConnection = nil
+                self?.backPhotoConnection = nil
             }
         }
     }
@@ -444,16 +454,16 @@ class DualCameraSessionManager {
             self?.activePhotoDelegates.removeValue(forKey: frontDelegateID)
             switch result {
             case .success(let data):
-                self?.lock.lock()
+                lock.lock()
                 frontResult = data
-                self?.lock.unlock()
+                lock.unlock()
                 checkAndComplete()
             case .failure(let error):
-                self?.lock.lock()
+                lock.lock()
                 if !hasCompleted {
                     hasCompleted = true
                 }
-                self?.lock.unlock()
+                lock.unlock()
                 completion(.failure(error))
             }
         }
@@ -462,16 +472,16 @@ class DualCameraSessionManager {
             self?.activePhotoDelegates.removeValue(forKey: backDelegateID)
             switch result {
             case .success(let data):
-                self?.lock.lock()
+                lock.lock()
                 backResult = data
-                self?.lock.unlock()
+                lock.unlock()
                 checkAndComplete()
             case .failure(let error):
-                self?.lock.lock()
+                lock.lock()
                 if !hasCompleted {
                     hasCompleted = true
                 }
-                self?.lock.unlock()
+                lock.unlock()
                 completion(.failure(error))
             }
         }
@@ -480,12 +490,11 @@ class DualCameraSessionManager {
         activePhotoDelegates[backDelegateID] = backDelegate
 
         // Set video orientation for both photo connections
-        [frontOutput, backOutput].forEach { output in
-            if let connection = output.connection(with: .photo) {
-                if connection.isVideoOrientationSupported {
-                    connection.videoOrientation = .portrait
-                }
-            }
+        if let frontConn = frontPhotoConnection, frontConn.isVideoOrientationSupported {
+            frontConn.videoOrientation = .portrait
+        }
+        if let backConn = backPhotoConnection, backConn.isVideoOrientationSupported {
+            backConn.videoOrientation = .portrait
         }
 
         sessionQueue.async {
