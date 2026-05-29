@@ -242,16 +242,16 @@ object DualCameraSessionManager {
                 if (frontCompleted && backCompleted) {
                     val combined = mutableMapOf<String, Any>()
                     frontResult?.let {
-                        combined["frontUri"] = it["uri"]
-                        combined["frontWidth"] = it["width"]
-                        combined["frontHeight"] = it["height"]
-                        if (wantBase64) combined["frontBase64"] = it["base64"]
+                        combined["frontUri"] = it["uri"]!!
+                        combined["frontWidth"] = it["width"]!!
+                        combined["frontHeight"] = it["height"]!!
+                        if (wantBase64) combined["frontBase64"] = it["base64"]!!
                     }
                     backResult?.let {
-                        combined["backUri"] = it["uri"]
-                        combined["backWidth"] = it["width"]
-                        combined["backHeight"] = it["height"]
-                        if (wantBase64) combined["backBase64"] = it["base64"]
+                        combined["backUri"] = it["uri"]!!
+                        combined["backWidth"] = it["width"]!!
+                        combined["backHeight"] = it["height"]!!
+                        if (wantBase64) combined["backBase64"] = it["base64"]!!
                     }
                     if (combined.isEmpty() && finalError != null) {
                         callback(Result.failure(finalError!!))

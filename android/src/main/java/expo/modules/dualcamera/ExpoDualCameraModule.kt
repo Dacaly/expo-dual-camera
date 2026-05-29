@@ -57,7 +57,7 @@ class ExpoDualCameraModule : Module() {
         return@AsyncFunction
       }
 
-      permissions.askForPermissionsWithPermissionsManager(
+      permissions.askForPermissions(
         promise,
         Manifest.permission.CAMERA
       )
