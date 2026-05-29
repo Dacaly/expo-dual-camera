@@ -47,20 +47,16 @@ class ExpoDualCameraModule : Module() {
       ) == PackageManager.PERMISSION_GRANTED
 
       if (alreadyGranted) {
-        promise.resolve(permissionResponse(true, canAskAgain = true))
+        promise.resolve(permissionResponse(granted = true, canAskAgain = true))
         return@AsyncFunction
       }
 
-      val permissions = appContext.permissions
-      if (permissions == null) {
-        promise.reject("E_PERMISSIONS", "Permissions module not available", null)
-        return@AsyncFunction
+      val activity = appContext.activity ?: run {
+        promise.reject("E_ACTIVITY", "Activity not available", null); return@AsyncFunction
       }
 
-      permissions.askForPermissions(
-        promise,
-        Manifest.permission.CAMERA
-      )
+      activity.requestPermissions(arrayOf(Manifest.permission.CAMERA), 0)
+      promise.resolve(permissionResponse(granted = false, canAskAgain = true))
     }
 
     // MARK: - Photo Capture
