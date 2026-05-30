@@ -51,7 +51,7 @@ class ExpoDualCameraModule : Module() {
         return@AsyncFunction
       }
 
-      val activity = appContext.throwingActivityOfCurrentTask ?: run {
+      val activity = appContext.currentActivity ?: run {
         promise.reject("E_ACTIVITY", "Activity not available", null); return@AsyncFunction
       }
 
